@@ -86,42 +86,50 @@ class TastytradeClient:
     def get_option_chain(self, symbol, expiry, option_type="call"):
         """Get option chain for a symbol and expiry date."""
         try:
-            params = {"expiration-date": expiry}
-            data = self._request("GET", f"/option-chains/{symbol}/nested", params=params)
+            data = self._request("GET", f"/option-chains/{symbol}/nested")
             contracts = []
-            expirations = data.get("data", {}).get("items", [])
+            items = data.get("data", {}).get("items", [])
+            if not items:
+                return []
+            expirations = items[0].get("expirations", [])
+            side = "call" if option_type == "call" else "put"
             for exp in expirations:
                 if exp.get("expiration-date") != expiry:
                     continue
                 strikes = exp.get("strikes", [])
                 for strike in strikes:
-                    side = "call" if option_type == "call" else "put"
-                    contract = strike.get(side, {})
-                    if contract:
-                        contracts.append({
-                            "symbol": contract.get("symbol"),
-                            "strike_price": float(strike.get("strike-price", 0)),
-                            "expiration_date": expiry,
-                            "type": option_type,
-                            "close_price": 0,
-                        })
+                    contract_symbol = strike.get(side, "").strip()
+                    if not contract_symbol:
+                        continue
+                    contracts.append({
+                        "symbol": contract_symbol,
+                        "strike_price": float(strike.get("strike-price", 0)),
+                        "expiration_date": expiry,
+                        "type": option_type,
+                        "close_price": 0,
+                    })
             return contracts
         except Exception as e:
             log.error(f"Tastytrade get_option_chain {symbol}: {e}")
             return []
 
     def get_option_price(self, contract_symbol):
-        """Get current market price of an option contract."""
+        """Get current market price of an option contract via yfinance."""
         try:
-            data = self._request("GET", f"/market-data/quotes/{contract_symbol}")
-            quote = data.get("data", {}).get("items", [{}])[0]
-            bid = float(quote.get("bid", 0) or 0)
-            ask = float(quote.get("ask", 0) or 0)
-            if bid > 0 and ask > 0:
-                return round((bid + ask) / 2, 2)
-            return float(quote.get("last", 0) or 0)
+            import yfinance as yf
+            # Convert Tastytrade symbol to yfinance format
+            # NVDA  260515C00190000 -> NVDA260515C00190000
+            clean = contract_symbol.strip().replace(" ", "")
+            ticker = yf.Ticker(clean)
+            hist = ticker.history(period="1d", interval="1m")
+            if not hist.empty:
+                return float(hist["Close"].iloc[-1])
+            # Try info
+            info = ticker.info
+            price = info.get("regularMarketPrice") or info.get("ask") or 0
+            return float(price)
         except Exception as e:
-            log.error(f"Tastytrade get_option_price {contract_symbol}: {e}")
+            log.warning(f"get_option_price {contract_symbol}: {e}")
             return 0.0
 
     def place_option_order(self, contract_symbol, qty=1, side="buy"):

@@ -8,3 +8,5 @@ last_signals.json
 portfolio_state.json
 trades.csv
 backups/
+tt_auth.py
+tt_otp.py

@@ -9,6 +9,14 @@ import config
 class OptionsClient:
     def __init__(self, ibkr_client=None):
         self.ibkr = ibkr_client
+        # Use Tastytrade for options
+        try:
+            from tastytrade_client import TastytradeClient
+            self.tt = TastytradeClient()
+        except Exception as e:
+            from logger import log
+            log.warning(f"Tastytrade not available: {e}")
+            self.tt = None
 
     def find_best_option(self, symbol, direction, budget=250):
         """Find best option contract via IBKR — 30-45 day expiry, 1-6% OTM."""
@@ -28,7 +36,13 @@ class OptionsClient:
                 if target.weekday() == 6: target += timedelta(days=1)
                 expiry = target.strftime("%Y-%m-%d")
 
-                contracts = self.ibkr.get_option_chain(symbol, expiry, option_type)
+                # Use Tastytrade for chain lookup, fallback to IBKR
+                if self.tt:
+                    contracts = self.tt.get_option_chain(symbol, expiry, option_type)
+                elif self.ibkr:
+                    contracts = self.ibkr.get_option_chain(symbol, expiry, option_type)
+                else:
+                    contracts = []
                 if not contracts:
                     continue
 
@@ -45,8 +59,13 @@ class OptionsClient:
                     if not (0.01 <= pct_otm <= 0.06):
                         continue
 
-                    # Get live price from IBKR
-                    price = self.ibkr.get_option_price(symbol, expiry, strike, option_type)
+                    # Get live price from Tastytrade or IBKR
+                    if self.tt:
+                        price = self.tt.get_option_price(c.get("symbol", ""))
+                    elif self.ibkr:
+                        price = self.ibkr.get_option_price(symbol, expiry, strike, option_type)
+                    else:
+                        price = 0.0
                     cost = price * 100
                     if price < 0.10 or cost > budget:
                         continue
@@ -68,6 +87,10 @@ class OptionsClient:
 
     def place_option_order(self, contract_symbol, qty=1, side="buy"):
         """Place option order via IBKR (paper or live)."""
+        # Use Tastytrade for all options orders (paper and live)
+        if self.tt:
+            return self.tt.place_option_order(contract_symbol, qty, side)
+        # Fallback to IBKR
         if not config.IS_LIVE:
             log.info(f"[PAPER] OPTIONS {side.upper()} {contract_symbol} x{qty}")
             return {
@@ -79,8 +102,8 @@ class OptionsClient:
                 "timestamp": datetime.utcnow().isoformat(),
             }
         if not self.ibkr:
-            log.error("OptionsClient: no IBKR client for live order")
-            return {"success": False, "error": "no IBKR client"}
+            log.error("OptionsClient: no client available")
+            return {"success": False}
         try:
             action = "BUY" if side.lower() == "buy" else "SELL"
             result = self.ibkr.place_option_order(contract_symbol, action, qty)

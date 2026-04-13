@@ -34,6 +34,10 @@ KELLY_FRACTION       = 0.25
 SCAN_INTERVAL        = int(os.getenv("SCAN_INTERVAL_SECONDS", 300))
 KILL_SWITCH          = os.getenv("KILL_SWITCH", "0") == "1"
 
+# Tastytrade
+TASTYTRADE_USERNAME  = os.getenv("TASTYTRADE_USERNAME", "")
+TASTYTRADE_PASSWORD  = os.getenv("TASTYTRADE_PASSWORD", "")
+
 COINBASE_API_KEY     = os.getenv("COINBASE_API_KEY", "")
 COINBASE_PRIVATE_KEY = os.getenv("COINBASE_PRIVATE_KEY", "")
 

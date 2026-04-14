@@ -7,7 +7,10 @@ import pytz
 log = logging.getLogger("tradeiq")
 
 class IBKRClient:
-    def __init__(self, host="127.0.0.1", port=7497, client_id=1):
+    def __init__(self, host="127.0.0.1", port=None, client_id=1):
+        import config as _config
+        if port is None:
+            port = _config.IBKR_PORT
         self.ib = IB()
         self.host = host
         self.port = port

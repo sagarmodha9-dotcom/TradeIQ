@@ -11,7 +11,7 @@ TWILIO_TO            = os.getenv("TWILIO_TO", "")
 TRADING_MODE         = os.getenv("TRADING_MODE", "paper").lower()
 IS_LIVE              = TRADING_MODE == "live"
 IBKR_HOST            = os.getenv("IBKR_HOST", "127.0.0.1")
-IBKR_PORT            = int(os.getenv("IBKR_PORT", 7496 if IS_LIVE else 7497))
+IBKR_PORT            = int(os.getenv("IBKR_PORT", 4001 if IS_LIVE else 4002))
 IBKR_CLIENT_ID       = int(os.getenv("IBKR_CLIENT_ID", 1))
 
 PAPER_BALANCE        = float(os.getenv("PAPER_BALANCE", 14949))

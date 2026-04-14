@@ -246,7 +246,7 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
     # Also cooldown any symbol traded in last 2 hours (prevents over-trading)
     from datetime import datetime, timezone, timedelta
     cooldown_hours = 1 if config.IS_LIVE else 0.5
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=cooldown_hours)
+    cutoff = datetime.now() - timedelta(hours=cooldown_hours)  # Use local time to match closed_at timestamps
     try:
         from trade_history import load_history
         recent = load_history()

@@ -408,7 +408,7 @@ setInterval(rmFetch, 10000);
       </div>
     </div>
     <div id="vol-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:8px">
-      <div style="color:var(--text3);font-size:10px;font-family:var(--mono);grid-column:span 5;text-align:center;padding:10px">Market closed — data available Mon 9:30am EST</div>
+      <div style="color:var(--text3);font-size:10px;font-family:var(--mono);grid-column:span 5;text-align:center;padding:10px" id="vol-empty">Loading...</div>
     </div>
   </div>
 
@@ -832,7 +832,7 @@ function renderHome(d,cp,sp,total,cpnl,spnl,tpnl){
   const stockCount = op.filter(p=>p.market==='stocks').length;
   const optCount = op.filter(p=>p.market==='options').length;
   document.getElementById('hopensub').textContent = stockCount + ' stocks · ' + optCount + ' options';
-  const de=document.getElementById('hdaily');de.textContent=pf(tpnl);de.className='sc-val '+pc(tpnl);
+  const de=document.getElementById('hdaily');de.textContent=pf(dailyPnlToday);de.className='sc-val '+pc(dailyPnlToday);
   document.getElementById('hbotstatus').textContent='● Active';document.getElementById('hbotstatus').className='sc-val up';
   document.getElementById('hbotsub').textContent='Scanning '+(d.last_signals||[]).length+' markets';
   document.getElementById('hchartts').textContent='Updated '+now();
@@ -907,7 +907,7 @@ function renderHPos(pos){
   }
   
   if(others.length){
-    if(opts.length) html+=`<div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;font-family:var(--mono);padding:8px 0 6px;border-bottom:1px solid var(--border);margin-bottom:6px">Stocks & Crypto</div>`;
+    if(opts.length) html+=`<div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;font-family:var(--mono);padding:8px 0 6px;border-bottom:1px solid var(--border);margin-bottom:6px">Stocks</div>`;
     html+=others.slice(0,25).map(p=>{
       const isStk=p.market==='stocks';
       const icBg=isStk?'var(--pbg)':'var(--bbg)';
@@ -946,9 +946,9 @@ function renderNews(sigs){
   const topStock=buys.filter(s=>s.market==='stocks').sort((a,b)=>b.confidence-a.confidence)[0];
   const items=[
     {c:'var(--blue)',t:`AI Analysis: ${buys.length} BUY · ${sells.length} SELL · ${holds.length} HOLD across ${sigs.length} markets`,m:'Latest bot scan · '+now()},
-    {c:'var(--blue)',t:`Top crypto signal: ${topCrypto?topCrypto.product_id+' at '+Math.round(topCrypto.confidence*100)+'% confidence':'No BUY signals'}`,m:'Crypto markets · 24/7'},
+
     {c:'var(--purple)',t:`Top stock signal: ${topStock?topStock.product_id+' at '+Math.round(topStock.confidence*100)+'% confidence':'No BUY signals'}`,m:'Stock market · '+(new Date().getHours()>=9&&new Date().getHours()<16?'Open now':'Market closed')},
-    {c:'var(--amber)',t:'Strategy: Balanced · Quarter-Kelly · 3% SL / 6% TP · Min 65% confidence · Paper trading mode',m:'Bot configuration · Active'},
+    {c:'var(--amber)',t:'Strategy: Balanced · Quarter-Kelly · 3% SL / 6% TP · Min 72% confidence · Paper trading mode',m:'Bot configuration · Active'},
   ];
   el.innerHTML=items.map(i=>`<div class="news-item"><div class="ndot" style="background:${i.c}"></div><div><div class="ntit">${i.t}</div><div class="nmeta">${i.m}</div></div></div>`).join('');
 }
@@ -1441,4 +1441,58 @@ function renderJournal(trades, filter) {
 
 
 
+
+let volAllData = [], volPage = 0, volPerPage = 15;
+
+async function fetchVolume() {
+  try {
+    const d = await fetch(API + '/status').then(r => r.json());
+    const signals = d.last_signals || [];
+    // Show all signals sorted by confidence
+    volAllData = signals
+      .filter(s => s.action === 'BUY' && s.market === 'stocks')
+      .sort((a,b) => (b.confidence||0) - (a.confidence||0));
+    renderVol();
+  } catch(e) {
+    document.getElementById('vol-empty').textContent = 'No data available';
+  }
+}
+
+function renderVol() {
+  const grid = document.getElementById('vol-grid');
+  const empty = document.getElementById('vol-empty');
+  if (!volAllData.length) {
+    if(empty) empty.textContent = 'No BUY signals in current scan';
+    return;
+  }
+  if(empty) empty.style.display = 'none';
+  const page = volAllData.slice(volPage * volPerPage, (volPage + 1) * volPerPage);
+  const total = Math.ceil(volAllData.length / volPerPage);
+  document.getElementById('volcnt').textContent = volAllData.length;
+  document.getElementById('vol-page').textContent = `${volPage+1}/${total||1}`;
+  
+  // Keep first child (empty div) and replace rest
+  const existing = grid.querySelectorAll('.vol-card');
+  existing.forEach(e => e.remove());
+  
+  page.forEach(s => {
+    const conf = Math.round((s.confidence||0)*100);
+    const div = document.createElement('div');
+    div.className = 'vol-card';
+    div.style.cssText = 'background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center;cursor:pointer';
+    div.innerHTML = `
+      <div style="font-size:12px;font-weight:700;color:var(--text);font-family:var(--mono)">${s.product_id}</div>
+      <div style="font-size:10px;color:var(--green);margin-top:2px">${conf}%</div>
+      <div style="font-size:9px;color:var(--text3);margin-top:1px">BUY</div>
+    `;
+    grid.appendChild(div);
+  });
+}
+
+function volPrev() { if(volPage > 0){ volPage--; renderVol(); } }
+function volNext() { if((volPage+1)*volPerPage < volAllData.length){ volPage++; renderVol(); } }
+
+// Fetch on load
+fetchVolume();
+setInterval(fetchVolume, 30000);
 </script>

@@ -392,6 +392,8 @@ def monitor_stock_positions(ibkr, pt):
                     closed.append(symbol)
                 else:
                     log.info(f"📈 STOCK {symbol} @ ${current:.2f} PnL: ${pnl:.2f} ({pnl_pct:+.2f}%)")
+                    pos["pnl_usd"] = round(pnl, 4)
+                    pos["pnl_pct"] = round(pnl_pct, 2)
             except Exception as e:
                 log.error(f"Stock monitor error {symbol}: {e}")
     except Exception as e:

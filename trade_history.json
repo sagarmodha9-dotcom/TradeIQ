@@ -12038,5 +12038,41 @@
     "closed_at": "2026-04-14T15:43:06.893818",
     "date": "2026-04-14",
     "saved_at": "2026-04-14T19:43:06.899025+00:00"
+  },
+  {
+    "product_id": "SOFI",
+    "side": "BUY",
+    "entry_price": 16.85,
+    "exit_price": 17.89,
+    "pnl_usd": 7.28,
+    "pnl_pct": 6.17,
+    "status": "closed_tp",
+    "reasoning": "SOFI shows moderately strong uptrend momentum with price above EMA20 (+2.39%), indicating bullish bias. RSI at 63.58 suggests strength without overbought conditions (<70). Bollinger %B at 1.028 indicates price near upper band but not extreme. MACD neutral crossover is minor concern but uptrend structure intact. Risk/reward of 2.07:1 exceeds 2:1 minimum requirement. Balanced entry justified with 3% stop loss discipline.",
+    "key_signals": [],
+    "indicators": {},
+    "market": "stocks",
+    "confidence": 0.72,
+    "opened_at": "2026-04-13T14:52:39.373334",
+    "closed_at": "2026-04-14T15:49:23.532268",
+    "date": "2026-04-14",
+    "saved_at": "2026-04-14T19:49:23.534476+00:00"
+  },
+  {
+    "product_id": "SOFI",
+    "side": "BUY",
+    "entry_price": 16.85,
+    "exit_price": 17.93,
+    "pnl_usd": 7.56,
+    "pnl_pct": 6.41,
+    "status": "closed_tp",
+    "reasoning": "SOFI shows moderately strong uptrend momentum with price above EMA20 (+2.39%), indicating bullish bias. RSI at 63.58 suggests strength without overbought conditions (<70). Bollinger %B at 1.028 indicates price near upper band but not extreme. MACD neutral crossover is minor concern but uptrend structure intact. Risk/reward of 2.07:1 exceeds 2:1 minimum requirement. Balanced entry justified with 3% stop loss discipline.",
+    "key_signals": [],
+    "indicators": {},
+    "market": "stocks",
+    "confidence": 0.72,
+    "opened_at": "2026-04-13T14:52:39.373334",
+    "closed_at": "2026-04-14T15:55:33.979712",
+    "date": "2026-04-14",
+    "saved_at": "2026-04-14T19:55:33.984789+00:00"
   }
 ]

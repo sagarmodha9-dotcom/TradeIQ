@@ -98,6 +98,11 @@ def get_stock_chart(symbol, timeframe="1Hour", limit=24):
         return {"bars": [], "symbol": symbol}
 
 class Handler(BaseHTTPRequestHandler):
+    def _cors(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+
     def _json(self, data, status=200):
         try:
             body = json.dumps(data, default=str).encode()
@@ -227,6 +232,27 @@ class Handler(BaseHTTPRequestHandler):
             from earnings_calendar import get_earnings_summary
             summary = get_earnings_summary(config.STOCK_SYMBOLS)
             self._json({"earnings": summary})
+        elif path == "/market-news":
+            import anthropic, os
+            client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+            msg = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=1000,
+                messages=[{
+                    "role": "user",
+                    "content": "Search the web for today top 5 market-moving news stories including political and economic news affecting US stocks. For each provide: headline, one sentence summary, market impact (bullish/bearish/neutral), affected sectors. Return ONLY a JSON array with fields: headline, summary, impact, sectors. No markdown, no explanation."
+                }],
+                tools=[{"type": "web_search_20250305", "name": "web_search"}]
+            )
+            text = "".join(b.text for b in msg.content if hasattr(b, "text"))
+            import json as _json
+            try:
+                clean = text.replace("```json","").replace("```","").strip()
+                news = _json.loads(clean)
+            except:
+                news = []
+            self._json({"news": news})
+
         elif path == "/news":
             sym = qs.get("symbol", ["SPY"])[0]
             import news_sentiment

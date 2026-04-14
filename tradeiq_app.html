@@ -660,6 +660,19 @@ setInterval(rmFetch, 10000);
     <div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:16px;">Breakeven SL at +3% · Trailing at +4.5%</div>
     <div id="intel-trailing-list" style="display:flex;flex-direction:column;gap:8px;"><div style="font-size:12px;color:var(--text3);">No open positions</div></div>
   </div>
+
+  <!-- Market News Card -->
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px 24px;margin-top:18px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div>
+        <div style="font-size:13px;font-weight:500;">Market & Political News</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;">AI analysis of top market moving news</div>
+      </div>
+      <button onclick="fetchMarketNews()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-size:11px;padding:4px 12px;border-radius:6px;cursor:pointer;font-family:var(--mono);">↻ Refresh</button>
+    </div>
+    <div id="market-news-list"><div style="font-size:12px;color:var(--text3);">Loading...</div></div>
+  </div>
+
 </div>
 </div>
 
@@ -1300,7 +1313,7 @@ goPage = function(p){
   _origGoPage(p);
   if(p==='forecast'){if(allForecastMarkets.length===0)loadForecast();}
   if(p==='analytics')fetchAnalytics();
-  if(p==='intelligence')fetchIntelligence();
+  if(p==='intelligence'){fetchIntelligence();fetchMarketNews();}
   if(p==='signals')fetchSignals();
 };
 
@@ -1495,4 +1508,35 @@ function volNext() { if((volPage+1)*volPerPage < volAllData.length){ volPage++; 
 // Fetch on load
 fetchVolume();
 setInterval(fetchVolume, 30000);
+
+async function fetchMarketNews() {
+  const el = document.getElementById('market-news-list');
+  el.innerHTML = '<div style="font-size:12px;color:var(--text3);">Fetching latest news...</div>';
+  try {
+    const response = await fetch(INTEL_API + "/market-news", {
+      method: "GET",
+      headers: {"Content-Type": "application/json"}
+    });
+    const data = await response.json();
+    const news = data.news || [];
+    if (!news.length) {
+      el.innerHTML = '<div style="font-size:12px;color:var(--text3);">No news available. Try refreshing.</div>';
+      return;
+    }
+    el.innerHTML = news.map(n => {
+      const impactColor = n.impact === 'bullish' ? 'var(--green)' : n.impact === 'bearish' ? 'var(--red)' : 'var(--amber)';
+      const impactIcon = n.impact === 'bullish' ? '↑' : n.impact === 'bearish' ? '↓' : '→';
+      return `<div style="padding:12px;background:var(--bg3);border-radius:8px;margin-bottom:8px;border-left:3px solid ${impactColor}">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;">
+          <div style="font-size:12px;font-weight:600;color:var(--text);flex:1;margin-right:8px;">${n.headline}</div>
+          <span style="font-size:11px;color:${impactColor};font-family:var(--mono);white-space:nowrap;">${impactIcon} ${n.impact}</span>
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">${n.summary}</div>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--mono);">Sectors: ${Array.isArray(n.sectors) ? n.sectors.join(', ') : n.sectors}</div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text3);">Error fetching news. Try refreshing.</div>';
+  }
+}
 </script>

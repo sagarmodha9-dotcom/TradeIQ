@@ -253,6 +253,7 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
         for t in recent:
             try:
                 closed_at = datetime.fromisoformat(t.get("closed_at","").replace("Z","+00:00"))
+                if closed_at.tzinfo is None: closed_at = closed_at.replace(tzinfo=timezone.utc)
                 if closed_at > cutoff:
                     cooldown.add(t.get("product_id",""))
             except Exception:
@@ -518,7 +519,7 @@ def run_options_scan(options_client, options_analyzer, stock_signals, pt):
             opt_signal = options_analyzer.analyze(symbol, signal, price)
             if not opt_signal or opt_signal["strategy"] == "pass":
                 continue
-            ok, reason = risk_manager.check_all(symbol, opt_signal["confidence"], account_balance)
+            ok, reason = risk_manager.check_all(symbol + "_OPT", opt_signal["confidence"], account_balance)
             if not ok:
                 log.info(f"[OPT BLOCKED] {symbol}: {reason}")
                 continue

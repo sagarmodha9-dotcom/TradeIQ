@@ -379,7 +379,7 @@ setInterval(rmFetch, 10000);
     <div class="hero-val" id="htotal">$10,000.00</div>
     <div class="hero-chg nt" id="htotalchg">+$0.00 today</div>
     <div class="hero-split">
-      <div class="hsc" style="display:none"><div class="hsc-lbl"><div class="pip pb" style="animation:none;opacity:1;width:5px;height:5px"></div>Crypto</div><div class="hsc-val" id="hcval" style="color:var(--blue)">$5,000.00</div><div class="hsc-pnl nt" id="hcpnl">P&L: $0.00</div></div>
+      <div class="hsc" style="display:none"><div class="hsc-lbl"><div class="pip pb" style="animation:none;opacity:1;width:5px;height:5px"></div>Crypto</div><div class="hsc-val" id="hcval" style="color:var(--blue);display:none">$5,000.00</div><div class="hsc-pnl nt" id="hcpnl">P&L: $0.00</div></div>
       <div class="hsc"><div class="hsc-lbl"><div class="pip pp" style="animation:none;opacity:1;width:5px;height:5px"></div>Stocks</div><div class="hsc-val" id="hsval" style="color:var(--purple)">$5,000.00</div><div class="hsc-pnl nt" id="hspnl">P&L: $0.00</div></div>
       <div class="hsc"><div class="hsc-lbl"><div class="pip pg" style="animation:none;opacity:1;width:5px;height:5px"></div>Options</div><div class="hsc-val" id="hoval" style="color:var(--green)">$0.00</div><div class="hsc-pnl nt" id="hopnl">P&L: $0.00</div></div>
     </div>
@@ -423,7 +423,7 @@ setInterval(rmFetch, 10000);
     <div class="msearch"><input type="text" placeholder="Search symbol..." id="msrch" oninput="filterMkt(this.value)"></div>
     <div class="mfilter">
       <button class="mf active" onclick="setMF('all',this)">All</button>
-      <button class="mf" onclick="setMF('crypto',this)">Crypto</button>
+      
       <button class="mf" onclick="setMF('stocks',this)">Stocks</button>
       <button class="mf" onclick="setMF('buy',this)">BUY</button>
     </div>
@@ -440,7 +440,7 @@ setInterval(rmFetch, 10000);
     <div class="tpsec">
       <div class="tstit">Portfolio</div>
       <div class="tpblk">
-        <div class="tplbl"><div class="pip pb" style="animation:none;opacity:1"></div>Crypto</div>
+        
         <div class="tpval" id="tcv" style="color:var(--blue)">$5,000</div>
         <div class="tppnl" id="tcp">P&L: $0</div>
         <div class="tprow"><div class="tms"><div class="tmsl">Open</div><div class="tmsv" id="tco">0</div></div><div class="tms"><div class="tmsl">Win%</div><div class="tmsv" id="tcwr">—</div></div><div class="tms"><div class="tmsl">Trades</div><div class="tmsv" id="tct">0</div></div></div>
@@ -468,7 +468,7 @@ setInterval(rmFetch, 10000);
       </div>
       <div class="tctabs">
         <button class="tctab active" onclick="setTV('overview',this)">Overview</button>
-        <button class="tctab" onclick="setTV('crypto',this)">Crypto</button>
+        
         <button class="tctab" onclick="setTV('stocks',this)">Stocks</button>
         <button class="tctab" onclick="setTV('pnl',this)">P&L</button>
       </div>
@@ -500,7 +500,7 @@ setInterval(rmFetch, 10000);
   <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
     <button class="mf active" onclick="filterForecast('all',this)">All</button>
     <button class="mf" onclick="filterForecast('trump',this)">Trump</button>
-    <button class="mf" onclick="filterForecast('crypto',this)">Crypto</button>
+    
     <button class="mf" onclick="filterForecast('economy',this)">Economy</button>
     <button class="mf" onclick="filterForecast('market',this)">Markets</button>
   </div>

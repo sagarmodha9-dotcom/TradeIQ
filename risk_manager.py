@@ -126,7 +126,9 @@ def check_all(symbol, confidence, account_balance):
         activate_kill_switch(reason=f"daily loss limit: ${daily_pnl:.2f}")
         return False, f"daily loss limit reached (${daily_pnl:.2f})"
     # Separate limits for stocks and options
-    market = "options" if "_OPT" in symbol or symbol.count("_") > 0 else "stocks"
+    # Detect options by symbol format (e.g. TSLA260422C00350000 or TSLA  260422C00350000)
+    import re
+    market = "options" if re.search(r'[A-Z]{1,5}\s*\d{6}[CP]\d{8}', symbol) else "stocks"
     if market == "options":
         if get_open_options_count() >= config.MAX_OPEN_OPTIONS:
             return False, f"max options positions ({config.MAX_OPEN_OPTIONS}) reached"

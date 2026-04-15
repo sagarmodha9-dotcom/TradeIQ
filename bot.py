@@ -11,6 +11,9 @@ import news_sentiment
 import win_rate_tracker
 from earnings_calendar import get_options_expiry_days, has_earnings_soon
 from logger import log
+
+# In-memory cooldown
+_trade_cooldown = {}
 from ibkr_client import IBKRClient
 from analyzer import Analyzer
 from stock_analyzer import StockAnalyzer
@@ -227,6 +230,7 @@ def get_position_size(symbol, base_size, ibkr):
         return base_size
 
 def run_stock_scan(ibkr, stock_analyzer, pt):
+    global _trade_cooldown
     # Load existing stock positions from state
     try:
         import json
@@ -242,25 +246,7 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
         log.info("── Stock scan — SKIPPING NEW BUYS (SPY bearish)")
         return [], []
     log.info(f"── Stock scan — {len(config.STOCK_SYMBOLS)} symbols")
-    cooldown = get_recent_losers(24)
-    # Also cooldown any symbol traded in last 2 hours (prevents over-trading)
-    from datetime import datetime, timezone, timedelta
-    cooldown_hours = 1 if config.IS_LIVE else 0.5
-    cutoff = datetime.now() - timedelta(hours=cooldown_hours)  # Use local time to match closed_at timestamps
-    try:
-        from trade_history import load_history
-        recent = load_history()
-        for t in recent:
-            try:
-                closed_at = datetime.fromisoformat(t.get("closed_at","").replace("Z","+00:00"))
-                if closed_at.tzinfo is not None:
-                    closed_at = closed_at.astimezone().replace(tzinfo=None)
-                if closed_at > cutoff:
-                    cooldown.add(t.get("product_id",""))
-            except Exception:
-                pass
-    except Exception:
-        pass
+    # No time-based cooldown — daily loss limit is the safety net
     signals, positions = [], []
     for symbol in config.STOCK_SYMBOLS:
         try:
@@ -361,6 +347,14 @@ def monitor_stock_positions(ibkr, pt):
                 pnl_pct = (current - entry) / entry * 100
                 if current <= sl:
                     log.info(f"❌ STOCK SL HIT {symbol} @ ${current:.2f} PnL: ${pnl:.2f}")
+                    _trade_cooldown[symbol] = datetime.now()
+                    try:
+                        import json as _cj, os as _os
+                        _cf = "cooldown_state.json"
+                        _cd = _cj.load(open(_cf)) if _os.path.exists(_cf) else {}
+                        _cd[symbol] = datetime.now().isoformat()
+                        _cj.dump(_cd, open(_cf, "w"))
+                    except: pass
                     ibkr.place_market_order(symbol, "sell", qty=float(pos["quantity"]))
                     from trade_history import save_trade
                     save_trade({"product_id": symbol, "side": "BUY", "entry_price": entry,
@@ -377,6 +371,14 @@ def monitor_stock_positions(ibkr, pt):
                     closed.append(symbol)
                 elif current >= tp:
                     log.info(f"✅ STOCK TP HIT {symbol} @ ${current:.2f} PnL: ${pnl:.2f}")
+                    _trade_cooldown[symbol] = datetime.now()
+                    try:
+                        import json as _cj, os as _os
+                        _cf = "cooldown_state.json"
+                        _cd = _cj.load(open(_cf)) if _os.path.exists(_cf) else {}
+                        _cd[symbol] = datetime.now().isoformat()
+                        _cj.dump(_cd, open(_cf, "w"))
+                    except: pass
                     ibkr.place_market_order(symbol, "sell", qty=float(pos["quantity"]))
                     from trade_history import save_trade
                     save_trade({"product_id": symbol, "side": "BUY", "entry_price": entry,

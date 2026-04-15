@@ -81,7 +81,8 @@ def get_vix():
     if _vix_cache["fetched_at"] and (now - _vix_cache["fetched_at"]).total_seconds() < 900:
         return _vix_cache["value"]
     try:
-        hist = yf.Ticker("^VIX").history(period="5d", interval="1d")
+        import yfinance as _yf
+        hist = _yf.Ticker("^VIX").history(period="5d", interval="1d", timeout=3)
         if not hist.empty:
             val = float(hist["Close"].iloc[-1])
             _vix_cache["value"] = val

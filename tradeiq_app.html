@@ -1253,7 +1253,7 @@ goPage = function(p) {
 };
 
 document.getElementById('titime').textContent=now();
-mkHChart();mkTChart();fetchStatus();setInterval(fetchStatus,15000);
+mkHChart();mkTChart();fetchStatus();fetchStatus();setInterval(fetchStatus,15000);
 setInterval(()=>{if(document.getElementById('page-forecast').classList.contains('active'))loadForecast();},300000);
 
 let allForecastMarkets = [];

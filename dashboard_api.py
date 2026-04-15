@@ -245,25 +245,34 @@ class Handler(BaseHTTPRequestHandler):
             summary = get_earnings_summary(config.STOCK_SYMBOLS)
             self._json({"earnings": summary})
         elif path == "/market-news":
-            import anthropic, os
-            client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-            msg = client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=1000,
-                messages=[{
-                    "role": "user",
-                    "content": "Search the web for today top 5 market-moving news stories including political and economic news affecting US stocks. For each provide: headline, one sentence summary, market impact (bullish/bearish/neutral), affected sectors. Return ONLY a JSON array with fields: headline, summary, impact, sectors. No markdown, no explanation."
-                }],
-                tools=[{"type": "web_search_20250305", "name": "web_search"}]
-            )
-            text = "".join(b.text for b in msg.content if hasattr(b, "text"))
-            import json as _json
-            try:
-                clean = text.replace("```json","").replace("```","").strip()
-                news = _json.loads(clean)
-            except:
-                news = []
-            self._json({"news": news})
+            import time as _time
+            # Return cached news immediately, refresh in background
+            now = _time.time()
+            cache = _get_cached.__globals__.get('_news_cache', {})
+            if cache.get('news') and now - cache.get('t', 0) < 300:
+                self._json({"news": cache['news']})
+            else:
+                # Fetch in background thread
+                import threading, anthropic, os, json as _json
+                def fetch_news():
+                    try:
+                        client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+                        msg = client.messages.create(
+                            model="claude-haiku-4-5-20251001",
+                            max_tokens=1000,
+                            messages=[{"role": "user", "content": "Search web for today top 5 market-moving news affecting US stocks. Return ONLY JSON array with fields: headline, summary, impact (bullish/bearish/neutral), sectors. No markdown."}],
+                            tools=[{"type": "web_search_20250305", "name": "web_search"}]
+                        )
+                        text = "".join(b.text for b in msg.content if hasattr(b, "text"))
+                        clean = text.replace("```json","").replace("```","").strip()
+                        news = _json.loads(clean)
+                        _get_cached.__globals__['_news_cache'] = {'news': news, 't': _time.time()}
+                    except Exception as e:
+                        pass
+                t = threading.Thread(target=fetch_news, daemon=True)
+                t.start()
+                # Return cached or empty while fetching
+                self._json({"news": cache.get('news', []), "loading": True})
 
         elif path == "/news":
             sym = qs.get("symbol", ["SPY"])[0]

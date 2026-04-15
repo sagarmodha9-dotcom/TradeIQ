@@ -1,6 +1,18 @@
 import json
 import time
 from datetime import datetime, timezone
+
+# Response cache to avoid hammering IBKR
+_cache = {}
+_cache_ttl = 10  # seconds
+
+def _get_cached(key, fn):
+    now = time.time()
+    if key in _cache and now - _cache[key]['t'] < _cache_ttl:
+        return _cache[key]['v']
+    val = fn()
+    _cache[key] = {'v': val, 't': now}
+    return val
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 import config

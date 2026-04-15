@@ -253,7 +253,8 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
         for t in recent:
             try:
                 closed_at = datetime.fromisoformat(t.get("closed_at","").replace("Z","+00:00"))
-                if closed_at.tzinfo is None: closed_at = closed_at.replace(tzinfo=timezone.utc)
+                if closed_at.tzinfo is not None:
+                    closed_at = closed_at.astimezone().replace(tzinfo=None)
                 if closed_at > cutoff:
                     cooldown.add(t.get("product_id",""))
             except Exception:

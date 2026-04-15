@@ -81,14 +81,14 @@ def get_vix():
     if _vix_cache["fetched_at"] and (now - _vix_cache["fetched_at"]).total_seconds() < 900:
         return _vix_cache["value"]
     try:
-        hist = yf.Ticker("^VIX").history(period="1d", interval="5m")
+        hist = yf.Ticker("^VIX").history(period="5d", interval="1d")
         if not hist.empty:
             val = float(hist["Close"].iloc[-1])
             _vix_cache["value"] = val
             _vix_cache["fetched_at"] = now
             return val
-    except Exception as e:
-        log.warning(f"VIX fetch failed: {e}")
+    except Exception:
+        pass
     return _vix_cache["value"] or 20.0
 
 def is_high_volatility():

@@ -39,9 +39,9 @@ def print_banner(is_live):
     print(f"  SL: {config.STOP_LOSS_PCT:.0%}  TP: {config.TAKE_PROFIT_PCT:.0%}  Min conf: {config.MIN_CONFIDENCE:.0%}")
     print("="*60 + "\n")
 
-def save_state(crypto_signals, stock_signals, tm, alpaca_positions, pt):
+def save_state(stock_signals, positions, pt):
     try:
-        # Load existing stock positions to preserve them
+        # Load existing positions to preserve them
         try:
             import json as _json
             with open("bot_state.json") as _f:
@@ -52,36 +52,13 @@ def save_state(crypto_signals, stock_signals, tm, alpaca_positions, pt):
             _existing_stocks = []
             _existing_options = []
         # Merge: new positions take priority, keep existing ones not in new list
-        new_syms = [p["product_id"] for p in alpaca_positions]
-        merged_stocks = alpaca_positions + [p for p in _existing_stocks if p["product_id"] not in new_syms]
-        # Preserve existing options, add any new ones
-        new_opt_syms = [p["product_id"] for p in alpaca_positions if p.get("market") == "options"]
+        new_syms = [p["product_id"] for p in positions]
+        merged_stocks = positions + [p for p in _existing_stocks if p["product_id"] not in new_syms]
+        new_opt_syms = [p["product_id"] for p in positions if p.get("market") == "options"]
         merged_options = [p for p in _existing_options if p["product_id"] not in new_opt_syms]
-        alpaca_positions = merged_stocks + merged_options
-        crypto_pos = [
-            {
-                "product_id":  pid, "side": pos.side,
-                "entry_price": pos.entry_price, "quantity": pos.quantity,
-                "usd_value":   pos.usd_value, "stop_loss": pos.stop_loss,
-                "take_profit": pos.take_profit, "confidence": pos.confidence,
-                "reasoning":   pos.reasoning, "opened_at": pos.opened_at,
-                "market":      "crypto", "pnl_usd": 0.0,
-            }
-            for pid, pos in tm.positions.items()
-        ]
-        all_positions = crypto_pos + alpaca_positions
-        closed = [
-            {
-                "product_id":  p.product_id, "side": p.side,
-                "entry_price": p.entry_price, "exit_price": p.exit_price,
-                "pnl_usd":     p.pnl_usd, "pnl_pct": p.pnl_pct,
-                "status":      p.status, "closed_at": p.closed_at,
-                "market":      "crypto",
-            }
-            for p in tm.closed[-20:]
-        ]
+        all_positions = merged_stocks + merged_options
         port = pt.to_dict()
-        # Calculate stock P&L from trade history + unrealized open positions
+        # Calculate stock P&L
         try:
             import json as _j2
             with open("trade_history.json") as _tf:
@@ -93,57 +70,32 @@ def save_state(crypto_signals, stock_signals, tm, alpaca_positions, pt):
         unrealized_stock_pnl = sum(p.get("pnl_usd", 0) for p in stock_positions)
         stock_pnl = _closed_stock_pnl + unrealized_stock_pnl
         stock_balance = pt.stock_balance + stock_pnl
-        # Add options P&L to totals
         opts_positions = [p for p in all_positions if p.get("market") == "options"]
         opts_pnl = sum(p.get("pnl_usd", 0) for p in opts_positions)
         opts_cost = sum(p.get("usd_value", 0) for p in opts_positions)
-        total_pnl = port["crypto_pnl"] + stock_pnl + opts_pnl
-        total_balance = port["crypto_balance"] + stock_balance + opts_pnl
+        total_pnl = stock_pnl + opts_pnl
+        total_balance = stock_balance + opts_pnl
         with open("bot_state.json", "w") as f:
             json.dump({
-                "signals":          crypto_signals + stock_signals,
+                "signals":          stock_signals,
                 "scanned_at":       datetime.now().isoformat(),
                 "positions":        all_positions,
-                "closed_trades":    closed,
-                "stats":            tm.stats(),
+                "closed_trades":    [],
+                "stats":            tm.stats() if "tm" in dir() else {},
                 "portfolio_usd":    total_balance,
-                "crypto_portfolio": port["crypto_balance"],
                 "stock_portfolio":  round(stock_balance, 2),
                 "options_portfolio":opts_cost,
-                "crypto_pnl":       port["crypto_pnl"],
                 "stock_pnl":        round(stock_pnl, 2),
                 "options_pnl":      round(opts_pnl, 2),
                 "total_pnl":        round(total_pnl, 2),
-                "crypto_open":      len(crypto_pos),
-                "stock_open":       len([p for p in alpaca_positions if p.get("market")=="stocks"]),
+                "stock_open":       len([p for p in all_positions if p.get("market")=="stocks"]),
                 "options_open":     len(opts_positions),
-                "crypto_win_rate":  port["crypto_win_rate"],
                 "stock_win_rate":   port["stock_win_rate"],
-                "crypto_trades":    port["crypto_trades"],
                 "stock_trades":     port["stock_trades"],
             }, f)
-        log.info(f"Portfolio — Crypto:${port['crypto_balance']:,.2f} | Stocks:${stock_balance:,.2f} | Options P&L:${opts_pnl:+.2f} | Total:${total_balance:,.2f}")
+        log.info(f"Portfolio — Stocks:${stock_balance:,.2f} | Options P&L:${opts_pnl:+.2f} | Total:${total_balance:,.2f}")
     except Exception as e:
         log.error(f"Could not save state: {e}")
-
-def is_crypto_market_bullish(cb):
-    """Returns True if BTC is above its 20-day EMA (bullish trend)."""
-    try:
-        candles = cb.get_candles("BTC-USD", granularity="ONE_DAY", limit=25)
-        if len(candles) < 20:
-            return True  # Default to allowing trades if not enough data
-        closes = [float(c.get("c") or c.get("close") or 0) for c in candles]
-        ema20 = closes[0]
-        k = 2 / 21
-        for c in closes[1:]:
-            ema20 = c * k + ema20 * (1 - k)
-        current = closes[-1]
-        bullish = current > ema20
-        log.info(f"BTC trend: ${current:,.0f} vs EMA20 ${ema20:,.0f} — {'BULLISH ✅' if bullish else 'BEARISH ❌'}")
-        return bullish
-    except Exception as e:
-        log.error(f"Trend check error: {e}")
-        return True
 
 def get_recent_losers(hours=24):
     """Get symbols that hit SL in the last X hours - don't rebuy these."""
@@ -168,29 +120,6 @@ def get_recent_losers(hours=24):
         return losers
     except Exception:
         return set()
-
-def run_crypto_scan(cb, analyzer, tm, portfolio_usd, skip_bearish=True):
-    if skip_bearish and not is_crypto_market_bullish(cb):
-        log.info("── Crypto scan — SKIPPING (BTC bearish)")
-        return []
-    log.info(f"── Crypto scan — {len(config.CRYPTO_PAIRS)} pairs")
-    signals = []
-    for pair in config.CRYPTO_PAIRS:
-        try:
-            candles = cb.get_candles(pair)
-            signal  = analyzer.analyze(pair, candles)
-            if signal:
-                signal["market"] = "crypto"
-                signals.append(signal)
-        except Exception as e:
-            log.error(f"{pair}: {e}")
-    # Crypto disabled — IBKR stocks/options only
-    return [], []
-    crypto_cooldown = get_recent_losers(24)
-    for s in signals:
-        if s["action"] == "BUY" and s["confidence"] >= config.MIN_CONFIDENCE and s["product_id"] not in crypto_cooldown:
-            tm.open_trade(s, portfolio_usd)
-    return signals
 
 def is_stock_market_bullish(ibkr):
     """Returns True if SPY is above its 20-day EMA (bullish trend)."""
@@ -470,7 +399,7 @@ def monitor_option_positions(options_client):
                             log.warning(f"OPTIONS AUTO-CLOSE {p['product_id']}: down {pnl_pct:.1f}% — cutting loss")
                             try:
                                 from options_client import OptionsClient
-                                oc = OptionsClient(ibkr_client=alpaca)
+                                oc = OptionsClient(ibkr_client=ibkr)
                                 oc.place_option_order(p["product_id"], qty=1, side="sell")
                             except Exception as ce:
                                 log.error(f"Options close order failed: {ce}")
@@ -577,12 +506,11 @@ def run_scan(cb, ibkr, analyzer, stock_analyzer, tm, pt, options_client=None, op
     tm.monitor_positions()
     monitor_stock_positions(ibkr, pt)
     monitor_option_positions(options_client)
-    crypto_signals = []  # Crypto disabled
-    stock_signals, alpaca_pos   = run_stock_scan(ibkr, stock_analyzer, pt)
+    stock_signals, stock_pos   = run_stock_scan(ibkr, stock_analyzer, pt)
     options_pos = run_options_scan(options_client, options_analyzer, stock_signals, pt) if options_client else []
     # Crypto disabled - focusing on stocks + options only
 
-    all_signals = crypto_signals + stock_signals
+    all_signals = stock_signals
     if all_signals:
         rows = [
             [s.get("product_id","")[:20], s.get("market","").upper(),
@@ -590,15 +518,7 @@ def run_scan(cb, ibkr, analyzer, stock_analyzer, tm, pt, options_client=None, op
             for s in all_signals
         ]
         print("\n" + tabulate(rows, headers=["Symbol","Market","Action","Conf","Entry"], tablefmt="rounded_outline") + "\n")
-    clean_crypto = [{
-        "product_id": s["product_id"], "action": s["action"],
-        "confidence": s["confidence"], "entry_price": s["entry_price"],
-        "stop_loss":  s["stop_loss"],  "take_profit": s["take_profit"],
-        "risk_reward": s.get("risk_reward", 2.0),
-        "reasoning":  s.get("reasoning", ""), "market": "crypto",
-    } for s in crypto_signals]
-
-    save_state(clean_crypto, stock_signals, tm, alpaca_pos + options_pos, pt)
+        save_state(stock_signals, stock_pos + options_pos, pt)
 
 def main():
     parser = argparse.ArgumentParser()
@@ -628,7 +548,7 @@ def main():
     stock_analyzer = StockAnalyzer()
     tm             = TradeManager(cb, portfolio_tracker=pt)
     log.info(f"Stocks: {len(config.STOCK_SYMBOLS)} symbols | Mode: {config.TRADING_MODE.upper()} | IBKR port {config.IBKR_PORT}")
-    log.info(f"Portfolio — Crypto:${pt.crypto_balance:,.2f} | Stocks:${pt.stock_balance:,.2f} | Total:${pt.total_balance:,.2f}\n")
+    log.info(f"Portfolio — Stocks:${pt.stock_balance:,.2f} | Total:${pt.stock_balance:,.2f}\n")
     while _running:
         try:
             run_scan(cb, ibkr, analyzer, stock_analyzer, tm, pt, options_client, options_analyzer)
@@ -639,7 +559,7 @@ def main():
         for _ in range(config.SCAN_INTERVAL):
             if not _running: break
             time.sleep(1)
-    log.info(f"Final — Crypto:${pt.crypto_balance:,.2f} | Stocks:${pt.stock_balance:,.2f} | Total:${pt.total_balance:,.2f}")
+    log.info(f"Final — Stocks:${pt.stock_balance:,.2f} | Total:${pt.stock_balance:,.2f}")
 
 if __name__ == "__main__":
     main()

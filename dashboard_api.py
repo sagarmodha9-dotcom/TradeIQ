@@ -48,7 +48,7 @@ def get_status():
     return {
         "timestamp":        datetime.now(timezone.utc).isoformat(),
         "mode":             "live" if config.IS_LIVE else "paper",
-        "portfolio_usd":    state.get("portfolio_usd", 10000),
+        "portfolio_usd":    (lambda: __import__('ibkr_client').IBKRClient().get_portfolio_value() + 500 if __import__('config').IS_LIVE else state.get("portfolio_usd", 10000))(),
         "total_pnl":        state.get("total_pnl", 0),
         "daily_pnl":        __import__('trade_history').get_daily_summary().get("total_pnl", 0),
         "win_rate":         state.get("stats", {}).get("win_rate", 0),

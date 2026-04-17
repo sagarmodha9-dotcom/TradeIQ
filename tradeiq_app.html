@@ -475,14 +475,14 @@ setInterval(rmFetch, 15000);
       <div class="tstit">Portfolio</div>
       <div class="tpblk">
         
-        <div class="tpval" id="tcv" style="color:var(--blue)">$5,000</div>
+        <div class="tpval" id="tcv" style="color:var(--blue)">$0</div>
         <div class="tppnl" id="tcp">P&L: $0</div>
         <div class="tprow"><div class="tms"><div class="tmsl">Open</div><div class="tmsv" id="tco">0</div></div><div class="tms"><div class="tmsl">Win%</div><div class="tmsv" id="tcwr">—</div></div><div class="tms"><div class="tmsl">Trades</div><div class="tmsv" id="tct">0</div></div></div>
       </div>
       <div class="tdiv"></div>
       <div class="tpblk">
         <div class="tplbl"><div class="pip pp" style="animation:none;opacity:1"></div>Stocks</div>
-        <div class="tpval" id="tsv" style="color:var(--purple)">$5,000</div>
+        <div class="tpval" id="tsv" style="color:var(--purple)">$0</div>
         <div class="tppnl" id="tsp">P&L: $0</div>
         <div class="tprow"><div class="tms"><div class="tmsl">Open</div><div class="tmsv" id="tso">0</div></div><div class="tms"><div class="tmsl">Mkt</div><div class="tmsv" id="tsmkt" style="font-size:6px">—</div></div><div class="tms"><div class="tmsl">Trades</div><div class="tmsv" id="tst">0</div></div></div>
       </div>
@@ -495,7 +495,7 @@ setInterval(rmFetch, 15000);
   <div class="tc">
     <div class="tchdr">
       <div>
-        <div style="display:flex;align-items:center;gap:6px"><div class="tcsym" id="tcsym">—</div><span id="tcmktbadge" style="font-size:7px;padding:1px 5px;border-radius:2px;background:var(--bbg);color:var(--blue);border:1px solid var(--bbdr)">CRYPTO</span></div>
+        <div style="display:flex;align-items:center;gap:6px"><div class="tcsym" id="tcsym">—</div><span id="tcmktbadge" style="font-size:7px;padding:1px 5px;border-radius:2px;background:var(--bbg);color:var(--blue);border:1px solid var(--bbdr)">OPTIONS</span></div>
         <div class="tcprice" id="tcprice">—</div>
         <div class="tcchg nt" id="tcchg">Select a symbol</div>
         <div class="tcmeta"><div class="tcmi">Entry<span id="tcentry">—</span></div><div class="tcmi">SL<span id="tcsl" style="color:var(--red)">—</span></div><div class="tcmi">TP<span id="tctp" style="color:var(--green)">—</span></div><div class="tcmi">Conf<span id="tcconf">—</span></div></div>
@@ -717,7 +717,7 @@ const API = window.location.hostname === 'tradeiqs.app' ? 'https://api.tradeiqs.
 let lastD=null,allSigs=[],mf='all',ms='',mSelIdx=-1;
 let tSF='all',tV='overview',tSI=-1;
 let hChart=null,tChart=null,sdChart=null;
-let ph={crypto:[],stocks:[],total:[]};
+let ph={options:[],stocks:[],total:[]};
 function now(){return new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}
 function fmt(v){return v>100?v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:4})}
 function pf(v){return(v>=0?'+':'')+' $'+Math.abs(v).toFixed(2)}
@@ -840,11 +840,11 @@ function goPage(p){document.querySelectorAll('.page').forEach(e=>e.classList.rem
 function setOnline(ok){document.getElementById('nconn').className='nconn'+(ok?' on':'');document.getElementById('hconn').textContent=ok?'ONLINE':'OFFLINE';document.getElementById('hconn').className='stag '+(ok?'ton':'toff')}
 async function fetchStatus(){try{const r=await fetch(API+'/status',{signal:AbortSignal.timeout(15000)});if(!r.ok)throw new Error();const d=await r.json();lastD=d;setOnline(true);try{localStorage.setItem("tiq_cache",JSON.stringify(d));}catch(e){}try{renderAll(d);}catch(re){console.error('renderAll error:',re);}}catch(e){console.error('fetch error:',e);setOnline(false);}}
 function renderAll(d){
-  const cp=d.crypto_portfolio||5000,sp=d.stock_portfolio||5000,total=d.portfolio_usd||1500;
-  const cpnl=d.crypto_pnl||0,spnl=d.stock_pnl||0,tpnl=d.total_pnl||0;
+  const cp=d.options_portfolio||0,sp=d.stock_portfolio||0,total=d.portfolio_usd||0;
+  const cpnl=d.options_pnl||0,spnl=d.stock_pnl||0,tpnl=d.total_pnl||0;
   const t=now();
-  ph.crypto.push({t,v:cp});ph.stocks.push({t,v:sp});ph.total.push({t,v:total});
-  if(ph.total.length>60){ph.crypto.shift();ph.stocks.shift();ph.total.shift();}
+  ph.options.push({t,v:cp});ph.stocks.push({t,v:sp});ph.total.push({t,v:total});
+  if(ph.total.length>60){ph.options.shift();ph.stocks.shift();ph.total.shift();}
   renderHome(d,cp,sp,total,cpnl,spnl,tpnl);
   renderTermData(d,cp,sp,total,cpnl,spnl,tpnl);
   if(d.last_signals&&d.last_signals.length){allSigs=d.last_signals;renderMktList();renderTSigs();renderTWatch();document.getElementById('tsigcnt').textContent=allSigs.length;addTA('Scan — '+allSigs.length+' signals','#38bdf8');}
@@ -883,7 +883,7 @@ function renderHome(d,cp,sp,total,cpnl,spnl,tpnl){
   document.getElementById('hbotstatus').textContent='● Active';document.getElementById('hbotstatus').className='sc-val up';
   document.getElementById('hbotsub').textContent='Scanning '+(d.last_signals||[]).length+' markets';
   document.getElementById('hchartts').textContent='Updated '+now();
-  if(hChart){hChart.data.labels=ph.total.map(p=>p.t);hChart.data.datasets[0].data=ph.crypto.map(p=>p.v);hChart.data.datasets[1].data=ph.stocks.map(p=>p.v);hChart.data.datasets[2].data=ph.total.map(p=>p.v);hChart.update('none');}
+  if(hChart){hChart.data.labels=ph.total.map(p=>p.t);hChart.data.datasets[0].data=ph.options.map(p=>p.v);hChart.data.datasets[1].data=ph.stocks.map(p=>p.v);hChart.data.datasets[2].data=ph.total.map(p=>p.v);hChart.update('none');}
   renderHPos(op);renderHTrades(d.closed_trades||d.recent_trades||[]);renderNews(d.last_signals||[]);
 }
 function parseOptContract(pid){
@@ -898,7 +898,7 @@ function renderHPos(pos){
   document.getElementById('hposcnt').textContent=pos.length;
   const el=document.getElementById('hpositions');
   if(!pos.length){el.innerHTML='<div class="empty-msg">No open positions</div>';return;}
-  const sorted=[...pos.filter(p=>p.market==='options'),...pos.filter(p=>p.market==='stocks'),...pos.filter(p=>p.market==='crypto')];
+  const sorted=[...pos.filter(p=>p.market==='options'),...pos.filter(p=>p.market==='stocks'),...pos.filter(p=>p.market==='options')];
   
   let html='';
   const opts=sorted.filter(p=>p.market==='options');
@@ -990,7 +990,7 @@ function renderHTrades(trades){
 function renderNews(sigs){
   const el=document.getElementById('hnews');
   const buys=sigs.filter(s=>s.action==='BUY'),sells=sigs.filter(s=>s.action==='SELL'),holds=sigs.filter(s=>s.action==='HOLD');
-  const topCrypto=buys.filter(s=>s.market==='crypto').sort((a,b)=>b.confidence-a.confidence)[0];
+  const topCrypto=buys.filter(s=>s.market==='options').sort((a,b)=>b.confidence-a.confidence)[0];
   const topStock=buys.filter(s=>s.market==='stocks').sort((a,b)=>b.confidence-a.confidence)[0];
   const items=[
     {c:'var(--blue)',t:`AI Analysis: ${buys.length} BUY · ${sells.length} SELL · ${holds.length} HOLD across ${sigs.length} markets`,m:'Latest bot scan · '+now()},
@@ -1003,7 +1003,7 @@ function renderNews(sigs){
 // MARKETS
 function renderMktList(){
   let f=allSigs;
-  if(mf==='crypto')f=allSigs.filter(s=>s.market==='crypto');
+  if(mf==='options')f=allSigs.filter(s=>s.market==='options');
   else if(mf==='stocks')f=allSigs.filter(s=>s.market==='stocks');
   else if(mf==='buy')f=allSigs.filter(s=>s.action==='BUY');
   if(ms)f=f.filter(s=>s.product_id.toLowerCase().includes(ms.toLowerCase()));
@@ -1072,7 +1072,7 @@ async function loadChart(sym,mkt,range,el){
     const gMap={'1D':'ONE_HOUR','1W':'SIX_HOUR','1M':'ONE_DAY','3M':'ONE_DAY','YTD':'ONE_DAY','1Y':'ONE_DAY'};
     const lMap={'1D':24,'1W':28,'1M':30,'3M':90,'YTD':120,'1Y':365};
     const gran=gMap[range]||'ONE_HOUR';const limit=lMap[range]||24;
-    const ep=mkt==='stocks'?`${API}/chart/stock?symbol=${sym}&timeframe=1Hour&limit=${limit}`:`${API}/chart/crypto?symbol=${sym}&granularity=${gran}&limit=${limit}`;
+    const ep=mkt==='stocks'?`${API}/chart/stock?symbol=${sym}&timeframe=1Hour&limit=${limit}`:`${API}/chart/stock?symbol=${sym}&granularity=${gran}&limit=${limit}`;
     const r=await fetch(ep,{signal:AbortSignal.timeout(15000)});
     const data=await r.json();
     const candles=data.candles||data.bars||[];
@@ -1099,8 +1099,8 @@ async function loadChart(sym,mkt,range,el){
 function mkTChart(){tChart=new Chart(document.getElementById('tmc'),{type:'line',data:{labels:[],datasets:[{label:'Crypto',data:[],borderColor:'#38bdf8',borderWidth:1.5,pointRadius:0,fill:false,tension:0.3},{label:'Stocks',data:[],borderColor:'#c084fc',borderWidth:1.5,pointRadius:0,fill:false,tension:0.3},{label:'Total',data:[],borderColor:'#00e676',borderWidth:2,pointRadius:0,fill:{target:'origin',above:'rgba(0,230,118,0.04)'},tension:0.3}]},options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},plugins:{legend:{display:true,position:'top',labels:{color:'#4a5568',font:{size:7,family:'JetBrains Mono'},boxWidth:8,padding:7,usePointStyle:true,pointStyle:'line'}},tooltip:{backgroundColor:'#0f1520',borderColor:'#1e2d42',borderWidth:1,titleColor:'#94a3b8',bodyColor:'#e2e8f0',titleFont:{size:7,family:'JetBrains Mono'},bodyFont:{size:8,family:'JetBrains Mono'},callbacks:{label:c=>` ${c.dataset.label}: $${c.parsed.y.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`}}},scales:{x:{ticks:{color:'#2d3748',font:{size:7,family:'JetBrains Mono'},maxRotation:0},grid:{color:'rgba(30,45,66,0.4)'},border:{color:'#1e2d42'}},y:{ticks:{color:'#2d3748',font:{size:7,family:'JetBrains Mono'},callback:v=>'$'+Number(v).toLocaleString()},grid:{color:'rgba(30,45,66,0.4)'},border:{color:'#1e2d42'}}}}})}
 function updTChart(){
   if(!tChart)return;tChart.data.labels=ph.total.map(p=>p.t);
-  if(tV==='overview'){tChart.data.datasets[0].data=ph.crypto.map(p=>p.v);tChart.data.datasets[1].data=ph.stocks.map(p=>p.v);tChart.data.datasets[2].data=ph.total.map(p=>p.v);tChart.data.datasets.forEach(d=>d.hidden=false);}
-  else if(tV==='crypto'){tChart.data.datasets[0].data=ph.crypto.map(p=>p.v);tChart.data.datasets[1].data=[];tChart.data.datasets[2].data=[];tChart.data.datasets[0].hidden=false;tChart.data.datasets[1].hidden=true;tChart.data.datasets[2].hidden=true;}
+  if(tV==='overview'){tChart.data.datasets[0].data=ph.options.map(p=>p.v);tChart.data.datasets[1].data=ph.stocks.map(p=>p.v);tChart.data.datasets[2].data=ph.total.map(p=>p.v);tChart.data.datasets.forEach(d=>d.hidden=false);}
+  else if(tV==='options'){tChart.data.datasets[0].data=ph.options.map(p=>p.v);tChart.data.datasets[1].data=[];tChart.data.datasets[2].data=[];tChart.data.datasets[0].hidden=false;tChart.data.datasets[1].hidden=true;tChart.data.datasets[2].hidden=true;}
   else if(tV==='stocks'){tChart.data.datasets[0].data=[];tChart.data.datasets[1].data=ph.stocks.map(p=>p.v);tChart.data.datasets[2].data=[];tChart.data.datasets[0].hidden=true;tChart.data.datasets[1].hidden=false;tChart.data.datasets[2].hidden=true;}
   tChart.update('none');
 }
@@ -1117,7 +1117,7 @@ function renderTPnlChart(){
 function renderTermData(d,cp,sp,total,cpnl,spnl,tpnl){
   document.getElementById('tcv').textContent='$'+cp.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
   const te=document.getElementById('tcp');te.textContent='P&L: '+pf(cpnl);te.className='tppnl '+pc(cpnl);
-  document.getElementById('tco').textContent=d.crypto_open||0;document.getElementById('tcwr').textContent=d.crypto_win_rate>0?Math.round(d.crypto_win_rate*100)+'%':'—';document.getElementById('tct').textContent=d.crypto_trades||0;
+  document.getElementById('tco').textContent=d.options_open||0;document.getElementById('tcwr').textContent=d.stock_win_rate>0?Math.round(d.stock_win_rate*100)+'%':'—';document.getElementById('tct').textContent=d.stock_trades||0;
   document.getElementById('tsv').textContent='$'+sp.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
   const se=document.getElementById('tsp');se.textContent='P&L: '+pf(spnl);se.className='tppnl '+pc(spnl);
   document.getElementById('tso').textContent=d.stock_open||0;document.getElementById('tst').textContent=d.stock_trades||0;
@@ -1141,14 +1141,14 @@ function tSelSym(i){
   document.getElementById('tcsym').textContent=s.product_id;document.getElementById('tcprice').textContent='$'+fmt(s.entry_price||0);
   const ac=document.getElementById('tcchg');ac.textContent=s.action+' · '+Math.round((s.confidence||0)*100)+'% · '+s.market;ac.className='tcchg '+(s.action==='BUY'?'up':s.action==='SELL'?'dn':'nt');
   document.getElementById('tcentry').textContent=' $'+fmt(s.entry_price||0);document.getElementById('tcsl').textContent=' $'+fmt(s.stop_loss||0);document.getElementById('tctp').textContent=' $'+fmt(s.take_profit||0);document.getElementById('tcconf').textContent=' '+Math.round((s.confidence||0)*100)+'%';
-  const b=document.getElementById('tcmktbadge');b.textContent=(s.market||'crypto').toUpperCase();
+  const b=document.getElementById('tcmktbadge');b.textContent=(s.market||'options').toUpperCase();
   b.style.cssText=s.market==='stocks'?'font-size:7px;padding:1px 5px;border-radius:2px;background:var(--pbg);color:var(--purple);border:1px solid var(--pbdr)':'font-size:7px;padding:1px 5px;border-radius:2px;background:var(--bbg);color:var(--blue);border:1px solid var(--bbdr)';
 }
 function setTSF(f,el){tSF=f;document.querySelectorAll('.tftab').forEach(b=>b.classList.remove('active'));if(el)el.classList.add('active');renderTSigs();}
 function renderTSigs(){
   const list=document.getElementById('tsiglist');
   let f=allSigs;
-  if(tSF==='crypto')f=allSigs.filter(s=>s.market==='crypto');else if(tSF==='stocks')f=allSigs.filter(s=>s.market==='stocks');else if(tSF==='buy')f=allSigs.filter(s=>s.action==='BUY');
+  if(tSF==='options')f=allSigs.filter(s=>s.market==='options');else if(tSF==='stocks')f=allSigs.filter(s=>s.market==='stocks');else if(tSF==='buy')f=allSigs.filter(s=>s.action==='BUY');
   if(!f.length){list.innerHTML='<div class="empty-msg">No signals</div>';return;}
   list.innerHTML=f.map(s=>{
     const idx=allSigs.indexOf(s);const cc=s.action==='BUY'?'tsgbuy':s.action==='SELL'?'tsgsell':'tsghold';const ac=s.action==='BUY'?'tabuy':s.action==='SELL'?'tasell':'tahold';
@@ -1266,7 +1266,7 @@ goPage = function(p) {
     if(lastD) {
       const trades = lastD.closed_trades||[];
       const sPnl = trades.filter(t=>t.market==='stocks').reduce((a,t)=>a+(t.pnl_usd||0),0);
-      const cPnl = trades.filter(t=>t.market==='crypto').reduce((a,t)=>a+(t.pnl_usd||0),0);
+      const cPnl = trades.filter(t=>t.market==='options').reduce((a,t)=>a+(t.pnl_usd||0),0);
       const oPnl = trades.filter(t=>t.market==='options').reduce((a,t)=>a+(t.pnl_usd||0),0);
       const openOptsPnl=(lastD.open_positions||[]).filter(p=>p.market==='options').reduce((a,p)=>a+(p.pnl_usd||0),0);
       const totalOpts=oPnl+openOptsPnl;

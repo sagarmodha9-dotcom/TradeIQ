@@ -6,6 +6,36 @@ from datetime import datetime, timezone
 _cache = {}
 _cache_ttl = 10  # seconds
 
+# Live balance cache
+_balance_cache = {"ibkr": 1000.0, "tt": 500.0, "updated": 0}
+
+def _refresh_balance_background():
+    import threading, time
+    def _fetch():
+        while True:
+            try:
+                import config
+                if config.IS_LIVE:
+                    from ibkr_client import IBKRClient
+                    ibkr = IBKRClient()
+                    if ibkr.ib.isConnected():
+                        val = ibkr.get_portfolio_value()
+                        if val > 0:
+                            _balance_cache["ibkr"] = val
+                        ibkr.disconnect()
+                    from tastytrade_client import TastytradeClient
+                    tt = TastytradeClient()
+                    if tt.session_token:
+                        _balance_cache["tt"] = tt.get_balance()
+                    _balance_cache["updated"] = time.time()
+            except:
+                pass
+            time.sleep(300)  # refresh every 5 minutes
+    t = threading.Thread(target=_fetch, daemon=True)
+    t.start()
+
+_refresh_balance_background()
+
 def _get_cached(key, fn):
     now = time.time()
     if key in _cache and now - _cache[key]['t'] < _cache_ttl:
@@ -48,7 +78,7 @@ def get_status():
     return {
         "timestamp":        datetime.now(timezone.utc).isoformat(),
         "mode":             "live" if config.IS_LIVE else "paper",
-        "portfolio_usd":    (lambda: __import__('ibkr_client').IBKRClient().get_portfolio_value() + 500 if __import__('config').IS_LIVE else state.get("portfolio_usd", 10000))(),
+        "portfolio_usd":    _balance_cache["ibkr"] + _balance_cache["tt"],
         "total_pnl":        state.get("total_pnl", 0),
         "daily_pnl":        __import__('trade_history').get_daily_summary().get("total_pnl", 0),
         "win_rate":         state.get("stats", {}).get("win_rate", 0),
@@ -58,8 +88,8 @@ def get_status():
         "recent_trades":    closed[:20],
         "last_signals":     state.get("signals", []),
         "scanned_at":       state.get("scanned_at"),
-        "crypto_portfolio": state.get("crypto_portfolio", 5000),
-        "stock_portfolio":  state.get("stock_portfolio", 5000),
+        "crypto_portfolio": _balance_cache["tt"],
+        "stock_portfolio":  _balance_cache["ibkr"],
         "crypto_pnl":       state.get("crypto_pnl", 0),
         "stock_pnl":        state.get("stock_pnl", 0),
         "crypto_open":      state.get("crypto_open", 0),

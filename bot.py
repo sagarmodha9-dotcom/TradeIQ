@@ -1,4 +1,5 @@
 import sys
+import os
 import time
 import json
 import signal
@@ -610,9 +611,7 @@ def main():
     except EnvironmentError as e:
         print(str(e)); sys.exit(1)
     print_banner(config.IS_LIVE)
-    if config.IS_LIVE:
-        if input("LIVE MODE - real funds. Type yes to confirm: ").strip().lower() != "yes":
-            config.IS_LIVE = False
+    # Live mode confirmed via TRADING_MODE=live in .env
     cb = None  # Crypto disabled
     ibkr            = IBKRClient()
     _ibkr_fail_count = 0

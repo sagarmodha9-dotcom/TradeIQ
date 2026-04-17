@@ -852,7 +852,7 @@ function renderAll(d){
   const optPos=(d.open_positions||[]).filter(p=>p.market==='options');
   const optCost=optPos.reduce((a,p)=>a+(p.usd_value||0),0);
   const optPnl=optPos.reduce((a,p)=>a+(p.pnl_usd||0),0);
-  const hovalEl=document.getElementById('hoval');if(hovalEl)hovalEl.textContent='$'+optCost.toFixed(2);
+  // options cost shown in positions, not balance panel
   const hopEl=document.getElementById('hopnl');if(hopEl){hopEl.textContent='P&L: '+(optPnl>=0?'+':'')+'$'+Math.abs(optPnl).toFixed(2);hopEl.className='hsc-pnl '+(optPnl>=0?'up':'dn');}
   if(tV!=='pnl')updTChart();
   renderTPosHist(d.open_positions||[],d.closed_trades||d.recent_trades||[]);
@@ -867,7 +867,7 @@ function renderHome(d,cp,sp,total,cpnl,spnl,tpnl){
   // Use daily P&L from risk endpoint for "today" display
   const dailyPnlToday = (typeof lastRiskData !== 'undefined' && lastRiskData) ? (lastRiskData.daily_pnl || 0) : tpnl;
   const hce=document.getElementById('htotalchg');hce.textContent=pf(dailyPnlToday)+' today';hce.className='hero-chg '+pc(dailyPnlToday);
-  document.getElementById('hcval').textContent='$'+cp.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  document.getElementById('hcval').textContent='$'+cp.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});document.getElementById('hoval').textContent='$'+cp.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});const hopEl=document.getElementById('hopnl');if(hopEl){hopEl.textContent='P&L: '+pf(cpnl);hopEl.className='hsc-pnl '+pc(cpnl);}
   const hcpEl=document.getElementById('hcpnl');hcpEl.textContent='P&L: '+pf(cpnl);hcpEl.className='hsc-pnl '+pc(cpnl);
   document.getElementById('hsval').textContent='$'+sp.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
   const hspEl=document.getElementById('hspnl');hspEl.textContent='P&L: '+pf(spnl);hspEl.className='hsc-pnl '+pc(spnl);

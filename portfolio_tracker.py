@@ -61,11 +61,14 @@ class PortfolioTracker:
             self.state["stock_wins"] += 1
         self._save()
 
-    def update_stock_balance(self, alpaca_equity: float, initial: float = 100000.0):
-        """Update stock balance from Alpaca account equity."""
-        pnl = alpaca_equity - initial
+    def update_stock_balance(self, ibkr_equity: float, initial: float = None):
+        """Update stock balance from IBKR account equity."""
+        import config
+        if initial is None:
+            initial = config.LIVE_ACCOUNT_BALANCE if config.IS_LIVE else config.PAPER_BALANCE
+        pnl = ibkr_equity - initial
         self.state["stock_pnl"] = round(pnl, 2)
-        self.state["stock_balance"] = round(5000 + pnl, 2)
+        self.state["stock_balance"] = round(ibkr_equity, 2)
         self._save()
 
     @property

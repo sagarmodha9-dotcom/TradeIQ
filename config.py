@@ -56,6 +56,8 @@ STOCK_SYMBOLS = [
     "META", "GOOGL", "AMD",
     "SPY",  "QQQ",  "SOFI", "HOOD",
     "INTC", "NFLX", "DIS",  "UBER", "BABA",
+    "AAPL", "JPM",  "BAC",  "COIN", "PLTR",
+    "APP",  "SNAP", "ROKU", "SHOP", "SQ",
 ]
 
 def get_account_balance():

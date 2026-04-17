@@ -237,6 +237,40 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 </style>
 </head>
 <body>
+<div id="lockscreen" style="position:fixed;inset:0;background:#0a0a0f;display:flex;align-items:center;justify-content:center;z-index:9999;">
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:40px;width:320px;text-align:center;">
+    <div style="font-size:28px;margin-bottom:8px;">📈</div>
+    <div style="font-size:18px;font-weight:700;margin-bottom:4px;">TradeIQ</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:24px;">Enter passcode to continue</div>
+    <input id="passcode-input" type="password" placeholder="Passcode" 
+      style="width:100%;padding:12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;text-align:center;letter-spacing:4px;box-sizing:border-box;margin-bottom:12px;"
+      onkeydown="if(event.key==='Enter')checkPasscode()">
+    <button onclick="checkPasscode()" 
+      style="width:100%;padding:12px;background:var(--green);border:none;border-radius:8px;color:#000;font-weight:700;font-size:14px;cursor:pointer;">
+      Unlock
+    </button>
+    <div id="passcode-error" style="color:var(--red);font-size:12px;margin-top:8px;display:none;">Incorrect passcode</div>
+  </div>
+</div>
+<script>
+  const PASSCODE = "Krina3099@";
+  function checkPasscode() {
+    const input = document.getElementById("passcode-input").value;
+    if(input === PASSCODE) {
+      document.getElementById("lockscreen").style.display = "none";
+      localStorage.setItem("tiq_auth", "1");
+    } else {
+      document.getElementById("passcode-error").style.display = "block";
+      document.getElementById("passcode-input").value = "";
+    }
+  }
+  // Auto-unlock if already authenticated
+  if(localStorage.getItem("tiq_auth") === "1") {
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("lockscreen").style.display = "none";
+    });
+  }
+</script>
 <div class="app">
 <div class="nav">
   <div class="nlgo">TQ</div>
@@ -376,7 +410,7 @@ setInterval(rmFetch, 15000);
   </div>
   <div class="hero">
     <div class="hero-lbl">Total Portfolio Value</div>
-    <div class="hero-val" id="htotal">$10,000.00</div>
+    <div class="hero-val" id="htotal">$1,500.00</div>
     <div class="hero-chg nt" id="htotalchg">+$0.00 today</div>
     <div class="hero-split">
       <div class="hsc" style="display:none"><div class="hsc-lbl"><div class="pip pb" style="animation:none;opacity:1;width:5px;height:5px"></div>Crypto</div><div class="hsc-val" id="hcval" style="color:var(--blue);display:none">$5,000.00</div><div class="hsc-pnl nt" id="hcpnl">P&L: $0.00</div></div>
@@ -453,7 +487,7 @@ setInterval(rmFetch, 15000);
         <div class="tprow"><div class="tms"><div class="tmsl">Open</div><div class="tmsv" id="tso">0</div></div><div class="tms"><div class="tmsl">Mkt</div><div class="tmsv" id="tsmkt" style="font-size:6px">—</div></div><div class="tms"><div class="tmsl">Trades</div><div class="tmsv" id="tst">0</div></div></div>
       </div>
       <div class="tdiv"></div>
-      <div class="ttrow"><span class="ttlbl">Total</span><div style="text-align:right"><div class="ttval" id="ttv">$10,000</div><div class="ttpnl nt" id="ttp">+$0</div></div></div>
+      <div class="ttrow"><span class="ttlbl">Total</span><div style="text-align:right"><div class="ttval" id="ttv">$1,500</div><div class="ttpnl nt" id="ttp">+$0</div></div></div>
     </div>
     <div class="tpsec" style="padding-bottom:5px"><div class="tstit">Watchlist</div></div>
     <div class="tsymlist" id="tsymlist"><div class="empty-msg">Loading...</div></div>
@@ -520,7 +554,7 @@ setInterval(rmFetch, 15000);
   <!-- Overall summary -->
   <div style="background:linear-gradient(135deg,#0f1520,#141c2a);border:1px solid var(--border);border-radius:16px;padding:20px 24px;margin-bottom:20px">
     <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;font-family:var(--mono)">Overall Portfolio</div>
-    <div style="font-size:38px;font-weight:800;letter-spacing:-.03em;line-height:1;margin-bottom:5px" id="hist-total-val">$10,000.00</div>
+    <div style="font-size:38px;font-weight:800;letter-spacing:-.03em;line-height:1;margin-bottom:5px" id="hist-total-val">$1,500.00</div>
     <div style="font-size:14px;font-weight:500;margin-bottom:16px" id="hist-total-pnl">+$0.00 all time</div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
       <div style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
@@ -806,7 +840,7 @@ function goPage(p){document.querySelectorAll('.page').forEach(e=>e.classList.rem
 function setOnline(ok){document.getElementById('nconn').className='nconn'+(ok?' on':'');document.getElementById('hconn').textContent=ok?'ONLINE':'OFFLINE';document.getElementById('hconn').className='stag '+(ok?'ton':'toff')}
 async function fetchStatus(){try{const r=await fetch(API+'/status',{signal:AbortSignal.timeout(15000)});if(!r.ok)throw new Error();const d=await r.json();lastD=d;setOnline(true);try{renderAll(d);}catch(re){console.error('renderAll error:',re);}}catch(e){console.error('fetch error:',e);setOnline(false);}}
 function renderAll(d){
-  const cp=d.crypto_portfolio||5000,sp=d.stock_portfolio||5000,total=d.portfolio_usd||10000;
+  const cp=d.crypto_portfolio||5000,sp=d.stock_portfolio||5000,total=d.portfolio_usd||1500;
   const cpnl=d.crypto_pnl||0,spnl=d.stock_pnl||0,tpnl=d.total_pnl||0;
   const t=now();
   ph.crypto.push({t,v:cp});ph.stocks.push({t,v:sp});ph.total.push({t,v:total});
@@ -1237,7 +1271,7 @@ goPage = function(p) {
       const openOptsPnl=(lastD.open_positions||[]).filter(p=>p.market==='options').reduce((a,p)=>a+(p.pnl_usd||0),0);
       const totalOpts=oPnl+openOptsPnl;
       const total=sPnl+cPnl+totalOpts;
-      const portfolio=10000+total;
+      const portfolio=1500+total;
       const wins=trades.filter(t=>t.pnl_usd>0).length;
       const wr=trades.length?Math.round(wins/trades.length*100):0;
       const tv=document.getElementById('hist-total-val');

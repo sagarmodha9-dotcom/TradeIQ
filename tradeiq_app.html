@@ -1120,7 +1120,7 @@ function renderTermData(d,cp,sp,total,cpnl,spnl,tpnl){
   document.getElementById('tco').textContent=d.options_open||0;document.getElementById('tcwr').textContent='—';document.getElementById('tct').textContent=0;
   document.getElementById('tsv').textContent='$'+sp.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
   const se=document.getElementById('tsp');se.textContent='P&L: '+pf(spnl);se.className='tppnl '+pc(spnl);
-  document.getElementById('tso').textContent=d.stock_open||0;document.getElementById('tst').textContent=d.stock_trades||0;
+  document.getElementById('tso').textContent=d.stock_open||0;document.getElementById('tst').textContent=0;
   const mO=new Date().getHours()>=9&&new Date().getHours()<16;
   const sm=document.getElementById('tsmkt');sm.textContent=mO?'Open':'Closed';sm.style.color=mO?'var(--green)':'var(--red)';
   document.getElementById('ttv').textContent='$'+total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});

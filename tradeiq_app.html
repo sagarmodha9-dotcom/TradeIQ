@@ -562,8 +562,8 @@ setInterval(rmFetch, 15000);
         <div style="font-size:15px;font-weight:700" id="hist-stock-pnl">$0.00</div>
       </div>
       <div style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
-        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;font-family:var(--mono)">Crypto P&L</div>
-        <div style="font-size:15px;font-weight:700" id="hist-crypto-pnl">$0.00</div>
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;font-family:var(--mono)">Options P&L</div>
+        <div style="font-size:15px;font-weight:700" id="hist-opts-pnl2">$0.00</div>
       </div>
       <div style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
         <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;font-family:var(--mono)">Options P&L</div>
@@ -680,6 +680,9 @@ setInterval(rmFetch, 15000);
         <option>META</option><option>GOOGL</option><option>AMD</option><option>SPY</option>
         <option>QQQ</option><option>SOFI</option><option>HOOD</option><option>INTC</option>
         <option>NFLX</option><option>DIS</option><option>UBER</option><option>BABA</option>
+        <option>AAPL</option><option>JPM</option><option>BAC</option><option>COIN</option>
+        <option>PLTR</option><option>APP</option><option>SNAP</option><option>ROKU</option>
+        <option>SHOP</option><option>SQ</option>
       </select>
     </div>
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
@@ -1279,7 +1282,7 @@ goPage = function(p) {
       const tp=document.getElementById('hist-total-pnl');
       if(tp){tp.textContent=(total>=0?'+':'')+'$'+Math.abs(total).toFixed(2)+' all time';tp.className=total>=0?'up':'dn';}
       const sp=document.getElementById('hist-stock-pnl');if(sp){sp.textContent=(sPnl>=0?'+':'')+'$'+Math.abs(sPnl).toFixed(2);sp.className=sPnl>=0?'up':'dn';}
-      const cp=document.getElementById('hist-crypto-pnl');if(cp){cp.textContent=(cPnl>=0?'+':'')+'$'+Math.abs(cPnl).toFixed(2);cp.className=cPnl>=0?'up':'dn';}
+      const cp=document.getElementById('hist-opts-pnl2');if(cp){cp.textContent=(cPnl>=0?'+':'')+'$'+Math.abs(cPnl).toFixed(2);cp.className=cPnl>=0?'up':'dn';}
       const op=document.getElementById('hist-opts-pnl');if(op){op.textContent=(totalOpts>=0?'+':'')+'$'+Math.abs(totalOpts).toFixed(2);op.className=totalOpts>=0?'up':'dn';}
       const wr2=document.getElementById('hist-wr-all');if(wr2){wr2.textContent=wr+'%';wr2.className=wr>=55?'up':wr>=40?'nt':'dn';}
     }

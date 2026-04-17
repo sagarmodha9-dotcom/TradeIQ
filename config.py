@@ -61,7 +61,19 @@ STOCK_SYMBOLS = [
 ]
 
 def get_account_balance():
-    return LIVE_ACCOUNT_BALANCE if IS_LIVE else PAPER_BALANCE
+    if IS_LIVE:
+        try:
+            from ibkr_client import IBKRClient
+            ibkr = IBKRClient()
+            if ibkr.ib.isConnected():
+                val = ibkr.get_portfolio_value()
+                ibkr.disconnect()
+                if val > 0:
+                    return val
+        except:
+            pass
+        return LIVE_ACCOUNT_BALANCE
+    return PAPER_BALANCE
 
 def get_max_position_usd():
     return get_account_balance() * MAX_POSITION_PCT

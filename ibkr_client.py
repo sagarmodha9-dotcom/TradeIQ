@@ -73,6 +73,13 @@ class IBKRClient:
         now = datetime.now(pytz.timezone("US/Eastern"))
         if now.weekday() >= 5:
             return False
+        # NYSE holidays 2026
+        holidays = {
+            (1,1), (1,19), (2,16), (4,3), (5,25),
+            (7,3), (9,7), (11,26), (12,25)
+        }
+        if (now.month, now.day) in holidays:
+            return False
         o = now.replace(hour=9,  minute=30, second=0, microsecond=0)
         c = now.replace(hour=16, minute=0,  second=0, microsecond=0)
         return o <= now <= c

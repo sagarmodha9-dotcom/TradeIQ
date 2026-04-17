@@ -9,12 +9,12 @@ from datetime import datetime
 PORTFOLIO_FILE = "portfolio_state.json"
 
 DEFAULT_STATE = {
-    "crypto_balance":  5000.0,
-    "kalshi_balance": 1000.0,
+    "crypto_balance":  0.0,
+    "kalshi_balance": 0.0,
     "kalshi_pnl":     0.0,
     "kalshi_trades":  0,
     "kalshi_wins":    0,
-    "stock_balance":   5000.0,
+    "stock_balance":   1000.0,
     "crypto_pnl":      0.0,
     "stock_pnl":       0.0,
     "crypto_trades":   0,

@@ -13,6 +13,7 @@ IS_LIVE              = TRADING_MODE == "live"
 IBKR_HOST            = os.getenv("IBKR_HOST", "127.0.0.1")
 IBKR_PORT            = int(os.getenv("IBKR_PORT", 4001 if IS_LIVE else 4002))
 IBKR_CLIENT_ID       = int(os.getenv("IBKR_CLIENT_ID", 1))
+IBKR_UTIL_CLIENT_ID  = int(os.getenv("IBKR_UTIL_CLIENT_ID", 10))
 
 PAPER_BALANCE        = float(os.getenv("PAPER_BALANCE", 14949))
 LIVE_ACCOUNT_BALANCE = float(os.getenv("LIVE_ACCOUNT_BALANCE", 2000))
@@ -61,19 +62,19 @@ STOCK_SYMBOLS = [
 ]
 
 def get_account_balance():
-    if IS_LIVE:
-        try:
-            from ibkr_client import IBKRClient
-            ibkr = IBKRClient()
-            if ibkr.ib.isConnected():
-                val = ibkr.get_portfolio_value()
-                ibkr.disconnect()
-                if val > 0:
-                    return val
-        except:
-            pass
-        return LIVE_ACCOUNT_BALANCE
-    return PAPER_BALANCE
+    if not IS_LIVE:
+        return PAPER_BALANCE
+    try:
+        from ib_insync import IB
+        ib = IB()
+        ib.connect(IBKR_HOST, IBKR_PORT, clientId=99, timeout=3)
+        val = float(next((v.value for v in ib.accountValues() if v.tag == "NetLiquidation" and v.currency == "USD"), 0))
+        ib.disconnect()
+        if val > 0:
+            return val
+    except:
+        pass
+    return LIVE_ACCOUNT_BALANCE
 
 def get_max_position_usd():
     return get_account_balance() * MAX_POSITION_PCT

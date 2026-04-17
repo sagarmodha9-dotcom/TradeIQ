@@ -342,7 +342,7 @@ const RM_API = window.location.hostname === 'tradeiqs.app' ? 'https://api.tradei
 let lastRiskData = null;
 async function rmFetch() {
   try {
-    const d = await fetch(RM_API + '/risk').then(r => r.json());
+    const d = await fetch(RM_API + "/risk").then(r => r.json());try{localStorage.setItem("tiq_risk_cache",JSON.stringify(d));}catch(e){}try{localStorage.setItem("tiq_risk_cache",JSON.stringify(d));}catch(e){}
     lastRiskData = d;
     const killed = d.killed;
     document.getElementById('killed-banner').style.display = killed ? 'block' : 'none';
@@ -838,7 +838,7 @@ async function fetchIntelligence() {
 
 function goPage(p){document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));document.querySelectorAll('.nbtn').forEach(e=>e.classList.remove('active'));document.getElementById('page-'+p).classList.add('active');document.getElementById('nav-'+p).classList.add('active');if(p==='analytics')fetchAnalytics();if(p==='intelligence')fetchIntelligence();}
 function setOnline(ok){document.getElementById('nconn').className='nconn'+(ok?' on':'');document.getElementById('hconn').textContent=ok?'ONLINE':'OFFLINE';document.getElementById('hconn').className='stag '+(ok?'ton':'toff')}
-async function fetchStatus(){try{const r=await fetch(API+'/status',{signal:AbortSignal.timeout(15000)});if(!r.ok)throw new Error();const d=await r.json();lastD=d;setOnline(true);try{renderAll(d);}catch(re){console.error('renderAll error:',re);}}catch(e){console.error('fetch error:',e);setOnline(false);}}
+async function fetchStatus(){try{const r=await fetch(API+'/status',{signal:AbortSignal.timeout(15000)});if(!r.ok)throw new Error();const d=await r.json();lastD=d;setOnline(true);try{localStorage.setItem("tiq_cache",JSON.stringify(d));}catch(e){}try{renderAll(d);}catch(re){console.error('renderAll error:',re);}}catch(e){console.error('fetch error:',e);setOnline(false);}}
 function renderAll(d){
   const cp=d.crypto_portfolio||5000,sp=d.stock_portfolio||5000,total=d.portfolio_usd||1500;
   const cpnl=d.crypto_pnl||0,spnl=d.stock_pnl||0,tpnl=d.total_pnl||0;
@@ -1287,7 +1287,10 @@ goPage = function(p) {
 };
 
 document.getElementById('titime').textContent=now();
-mkHChart();mkTChart();fetchStatus();fetchStatus();setInterval(fetchStatus,15000);
+mkHChart();mkTChart();
+  // Restore cached data instantly
+  try{const rc=localStorage.getItem("tiq_risk_cache");if(rc){try{const rd=JSON.parse(rc);lastRiskData=rd;document.getElementById("rm-vix").textContent=rd.vix?rd.vix.toFixed(1):"--";const pe=document.getElementById("rm-pnl");if(pe){pe.textContent=(rd.daily_pnl>=0?"+":"")+"$"+(rd.daily_pnl||0).toFixed(2);pe.style.color=rd.daily_pnl<0?"var(--red)":"var(--green)";}}catch(e){}}const c=localStorage.getItem("tiq_cache");if(c){const d=JSON.parse(c);lastD=d;renderAll(d);setOnline(true);}}catch(e){}
+  fetchStatus();setInterval(fetchStatus,15000);
 setInterval(()=>{if(document.getElementById('page-forecast').classList.contains('active'))loadForecast();},300000);
 
 let allForecastMarkets = [];

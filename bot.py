@@ -92,7 +92,7 @@ def save_state(crypto_signals, stock_signals, tm, alpaca_positions, pt):
         stock_positions = [p for p in all_positions if p.get("market") == "stocks"]
         unrealized_stock_pnl = sum(p.get("pnl_usd", 0) for p in stock_positions)
         stock_pnl = _closed_stock_pnl + unrealized_stock_pnl
-        stock_balance = 5000 + stock_pnl
+        stock_balance = pt.stock_balance + stock_pnl
         # Add options P&L to totals
         opts_positions = [p for p in all_positions if p.get("market") == "options"]
         opts_pnl = sum(p.get("pnl_usd", 0) for p in opts_positions)

@@ -1651,4 +1651,154 @@ async function fetchMarketNews() {
     el.innerHTML = '<div style="font-size:12px;color:var(--text3);">Error fetching news. Try refreshing.</div>';
   }
 }
+</script><script>
+// DASHBOARD WIDGETS
+async function fetchSector() {
+  try {
+    const d = await fetch(RM_API + '/sector').then(r => r.json());
+    const colors = {red: 'var(--red)', amber: 'var(--amber)', green: 'var(--green)', text: 'var(--text)'};
+    const c = colors[d.color] || 'var(--text)';
+    const spy = document.getElementById('sector-spy');
+    if (!spy) return;
+    spy.textContent = (d.spy_change >= 0 ? '+' : '') + d.spy_change.toFixed(2) + '%';
+    spy.style.color = d.spy_change >= 0 ? 'var(--green)' : 'var(--red)';
+    document.getElementById('sector-conf').textContent = Math.round(d.required_confidence * 100) + '%';
+    document.getElementById('sector-conf').style.color = d.filter_active ? 'var(--amber)' : 'var(--green)';
+    const filterEl = document.getElementById('sector-filter');
+    filterEl.textContent = d.filter_active ? 'Active ⚠' : 'Normal ✓';
+    filterEl.style.color = d.filter_active ? 'var(--amber)' : 'var(--green)';
+    document.getElementById('sector-reason').textContent = d.reason;
+    const badge = document.getElementById('sector-status-badge');
+    badge.textContent = d.status.toUpperCase();
+    badge.style.color = c;
+    badge.style.borderColor = c;
+  } catch(e) { console.error('fetchSector', e); }
+}
+
+async function fetchEarnings() {
+  try {
+    const d = await fetch(RM_API + '/earnings').then(r => r.json());
+    const upcoming = d.upcoming || [];
+    const cntEl = document.getElementById('earnings-cnt');
+    if (cntEl) cntEl.textContent = upcoming.length;
+    const el = document.getElementById('earnings-list');
+    if (!el) return;
+    if (!upcoming.length) { el.innerHTML = '<div class="empty-msg">No earnings in next 14 days</div>'; return; }
+    el.innerHTML = upcoming.map(e => {
+      const urgent = e.days <= 2;
+      const soon = e.days <= 7;
+      const color = urgent ? 'var(--red)' : soon ? 'var(--amber)' : 'var(--text)';
+      const bg = urgent ? 'var(--rbg)' : soon ? 'var(--abg)' : 'var(--bg3)';
+      const border = urgent ? 'var(--rbdr)' : soon ? 'var(--abdr)' : 'var(--border)';
+      const label = e.days === 0 ? 'TODAY' : e.days === 1 ? 'TOMORROW' : 'in ' + e.days + ' days';
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:${bg};border:1px solid ${border};border-radius:8px;margin-bottom:6px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:13px;font-weight:700;font-family:var(--mono);color:${color}">${e.symbol}</span>
+          ${urgent ? '<span style="font-size:9px;padding:1px 6px;background:var(--red);color:#fff;border-radius:3px;font-family:var(--mono)">IMMINENT</span>' : ''}
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;font-weight:600;color:${color}">${label}</div>
+          <div style="font-size:9px;color:var(--text3);font-family:var(--mono)">${e.date}</div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { console.error('fetchEarnings', e); }
+}
+
+async function fetchPremarket() {
+  try {
+    const d = await fetch(RM_API + '/premarket').then(r => r.json());
+    const wl = d.watchlist || [];
+    const cntEl = document.getElementById('premarket-cnt');
+    if (cntEl) cntEl.textContent = wl.length;
+    const el = document.getElementById('premarket-list');
+    if (!el) return;
+    if (!wl.length) { el.innerHTML = '<div class="empty-msg">Pre-market scan runs 8:00-9:25 AM ET</div>'; return; }
+    el.innerHTML = wl.slice(0,6).map(w => {
+      const gapColor = w.gap_pct >= 0 ? 'var(--green)' : 'var(--red)';
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;margin-bottom:6px">
+        <span style="font-size:13px;font-weight:700;font-family:var(--mono)">${w.symbol}</span>
+        <span style="font-size:10px;color:var(--text3)">${(w.reasons||[]).join(' · ')}</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11px;font-weight:600;color:${gapColor}">${w.gap_pct >= 0 ? '+' : ''}${w.gap_pct.toFixed(1)}%</span>
+          <span style="font-size:9px;padding:2px 6px;background:var(--bg4);border-radius:3px;font-family:var(--mono);color:var(--text3)">score ${w.score}</span>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { console.error('fetchPremarket', e); }
+}
+
+async function fetchWTD() {
+  try {
+    const d = await fetch(RM_API + '/status').then(r => r.json());
+    const trades = d.closed_trades || [];
+    const now = new Date();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - now.getDay() + 1);
+    monday.setHours(0,0,0,0);
+    const weekTrades = trades.filter(t => new Date(t.closed_at || t.opened_at || 0) >= monday);
+    const wtdPnl = weekTrades.reduce((s, t) => s + (t.pnl_usd || 0), 0);
+    const wtdEl = document.getElementById('wtd-pnl');
+    if (!wtdEl) return;
+    wtdEl.textContent = (wtdPnl >= 0 ? '+$' : '-$') + Math.abs(wtdPnl).toFixed(2);
+    wtdEl.style.color = wtdPnl >= 0 ? 'var(--green)' : 'var(--red)';
+    document.getElementById('wtd-trades').textContent = weekTrades.length + ' trades this week';
+  } catch(e) { console.error('fetchWTD', e); }
+}
+
+async function fetchDLL() {
+  try {
+    const d = await fetch(RM_API + '/risk').then(r => r.json());
+    const pnl = Math.abs(Math.min(d.daily_pnl || 0, 0));
+    const limit = Math.abs(d.daily_limit || 50);
+    const pct = Math.min(pnl / limit * 100, 100);
+    const dllEl = document.getElementById('dll-val');
+    if (!dllEl) return;
+    dllEl.textContent = '-$' + pnl.toFixed(2);
+    dllEl.style.color = pct > 80 ? 'var(--red)' : pct > 50 ? 'var(--amber)' : 'var(--green)';
+    const bar = document.getElementById('dll-bar');
+    bar.style.width = pct + '%';
+    bar.style.background = pct > 80 ? 'var(--red)' : pct > 50 ? 'var(--amber)' : 'var(--green)';
+    document.getElementById('dll-sub').textContent = 'of $' + limit.toFixed(2) + ' limit (' + pct.toFixed(0) + '%)';
+  } catch(e) { console.error('fetchDLL', e); }
+}
+
+async function fetchActivity() {
+  try {
+    const d = await fetch(RM_API + '/status').then(r => r.json());
+    const positions = d.open_positions || [];
+    const trades = (d.closed_trades || []).slice(-5).reverse();
+    const el = document.getElementById('activity-feed');
+    if (!el) return;
+    const items = [];
+    trades.forEach(t => {
+      const win = t.pnl_usd > 0;
+      const time = t.closed_at ? new Date(t.closed_at).toLocaleTimeString() : '--';
+      items.push(`<div style="display:flex;align-items:center;gap:10px;padding:6px 10px;border-bottom:1px solid var(--border)">
+        <span>${win ? '✅' : '❌'}</span>
+        <div style="flex:1"><span style="font-size:11px;font-weight:600;font-family:var(--mono)">${t.product_id}</span>
+        <span style="font-size:10px;color:var(--text3);margin-left:6px">${t.status === 'closed_tp' ? 'TP Hit' : 'SL Hit'}</span></div>
+        <span style="font-size:11px;font-weight:600;color:${win ? 'var(--green)' : 'var(--red)'}">${win ? '+' : ''}$${(t.pnl_usd||0).toFixed(2)}</span>
+        <span style="font-size:9px;color:var(--text3);font-family:var(--mono)">${time}</span>
+      </div>`);
+    });
+    positions.forEach(p => {
+      const pnl = p.pnl_usd || 0;
+      items.push(`<div style="display:flex;align-items:center;gap:10px;padding:6px 10px;border-bottom:1px solid var(--border)">
+        <span>📊</span>
+        <div style="flex:1"><span style="font-size:11px;font-weight:600;font-family:var(--mono)">${p.product_id}</span>
+        <span style="font-size:9px;color:var(--text3);margin-left:6px;text-transform:uppercase">${p.market}</span></div>
+        <span style="font-size:11px;font-weight:600;color:${pnl >= 0 ? 'var(--green)' : 'var(--red)'}">${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}</span>
+        <span style="font-size:9px;padding:2px 5px;background:var(--abg);color:var(--amber);border-radius:3px;font-family:var(--mono)">OPEN</span>
+      </div>`);
+    });
+    el.innerHTML = items.length ? items.join('') : '<div class="empty-msg">No recent activity</div>';
+  } catch(e) { console.error('fetchActivity', e); }
+}
+
+function loadDashboardWidgets() {
+  fetchSector(); fetchEarnings(); fetchPremarket(); fetchWTD(); fetchDLL(); fetchActivity();
+}
+loadDashboardWidgets();
+setInterval(loadDashboardWidgets, 30000);
 </script>

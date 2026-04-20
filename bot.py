@@ -233,7 +233,9 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
             log.error(f"{symbol}: {e}")
     try:
         acct = ibkr.get_account()
-        pass  # balance managed by config
+        val = float(acct.get("portfolio_value", 0))
+        if 0 < val < 50000:
+            pt.update_stock_balance(val)
     except Exception:
         pass
     return signals, positions

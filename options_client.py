@@ -30,7 +30,7 @@ class OptionsClient:
                 log.warning(f"Options {symbol}: could not get current price")
                 return None
 
-            for days_out in [30, 37, 45]:
+            for days_out in [7, 14, 21, 30]:
                 target = date.today() + timedelta(days=days_out)
                 if target.weekday() == 5: target += timedelta(days=2)
                 if target.weekday() == 6: target += timedelta(days=1)

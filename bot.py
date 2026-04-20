@@ -540,7 +540,7 @@ def sync_tastytrade_positions(options_client, pt):
             if symbol in existing_ids:
                 continue
             qty = float(p.get("quantity", 1))
-            price = float(p.get("average-open-price", 0))
+            price = float(p.get("average-open-price") or p.get("close-price") or 0)
             cost = price * 100 * qty
             state["positions"].append({
                 "product_id":  symbol,

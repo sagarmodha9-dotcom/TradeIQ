@@ -73,3 +73,100 @@ def alert_daily_summary(total, crypto, stocks, tpnl, wins, losses):
         f"Trades:          {wins}W / {losses}L\n"
         f"Win Rate:        {wr}"
     )
+
+def send_weekly_report():
+    """
+    Weekly performance report — call every Friday at 4 PM.
+    Summarizes the week: P&L, win rate, best/worst trade, top symbols.
+    """
+    try:
+        from datetime import datetime, timedelta
+        import json, os
+
+        # Load trade history
+        with open("trade_history.json") as f:
+            all_trades = json.load(f)
+
+        # Filter to this week (Monday - Friday)
+        today = datetime.now()
+        monday = today - timedelta(days=today.weekday())
+        monday = monday.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        week_trades = []
+        for t in all_trades:
+            try:
+                closed = t.get("closed_at") or t.get("opened_at", "")
+                if closed:
+                    dt = datetime.fromisoformat(closed.replace("Z",""))
+                    if dt >= monday:
+                        week_trades.append(t)
+            except:
+                pass
+
+        if not week_trades:
+            send_email(
+                "TradeIQ 📊 Weekly Report — No trades this week",
+                "No closed trades this week.\nBot was running but no positions closed.\n\nCheck dashboard: https://tradeiqs.app"
+            )
+            return
+
+        # Calculate stats
+        total_pnl  = sum(t.get("pnl_usd", 0) for t in week_trades)
+        wins       = [t for t in week_trades if t.get("pnl_usd", 0) > 0]
+        losses     = [t for t in week_trades if t.get("pnl_usd", 0) <= 0]
+        win_rate   = len(wins) / len(week_trades) * 100 if week_trades else 0
+        best_trade = max(week_trades, key=lambda t: t.get("pnl_usd", 0))
+        worst_trade= min(week_trades, key=lambda t: t.get("pnl_usd", 0))
+
+        # Top symbols by P&L
+        sym_pnl = {}
+        for t in week_trades:
+            sym = t.get("product_id", "?")
+            sym_pnl[sym] = sym_pnl.get(sym, 0) + t.get("pnl_usd", 0)
+        top_symbols = sorted(sym_pnl.items(), key=lambda x: x[1], reverse=True)[:5]
+
+        # Stock vs options breakdown
+        stock_pnl = sum(t.get("pnl_usd",0) for t in week_trades if t.get("market") == "stocks")
+        opts_pnl  = sum(t.get("pnl_usd",0) for t in week_trades if t.get("market") == "options")
+
+        sign = "+" if total_pnl >= 0 else ""
+        result_emoji = "🟢" if total_pnl >= 0 else "🔴"
+
+        body = f"""TradeIQ Weekly Performance Report
+Week of {monday.strftime('%b %d')} — {today.strftime('%b %d, %Y')}
+{'='*45}
+
+{result_emoji} TOTAL P&L:     {sign}${total_pnl:.2f}
+   Stocks P&L:  {'+' if stock_pnl>=0 else ''}${stock_pnl:.2f}
+   Options P&L: {'+' if opts_pnl>=0 else ''}${opts_pnl:.2f}
+
+📊 TRADE STATS
+   Total Trades: {len(week_trades)}
+   Wins:         {len(wins)}
+   Losses:       {len(losses)}
+   Win Rate:     {win_rate:.0f}%
+   Avg Win:      ${sum(t.get('pnl_usd',0) for t in wins)/len(wins):.2f if wins else 0:.2f}
+   Avg Loss:     ${sum(t.get('pnl_usd',0) for t in losses)/len(losses):.2f if losses else 0:.2f}
+
+🏆 BEST TRADE:  {best_trade.get('product_id')} +${best_trade.get('pnl_usd',0):.2f}
+💀 WORST TRADE: {worst_trade.get('product_id')} ${worst_trade.get('pnl_usd',0):.2f}
+
+📈 TOP SYMBOLS
+"""
+        for sym, pnl in top_symbols:
+            sign2 = "+" if pnl >= 0 else ""
+            body += f"   {sym:<12} {sign2}${pnl:.2f}\n"
+
+        body += f"""
+{'='*45}
+Dashboard: https://tradeiqs.app
+"""
+
+        send_email(
+            f"TradeIQ 📊 Weekly Report — {sign}${total_pnl:.2f} | {win_rate:.0f}% win rate",
+            body
+        )
+        log.info(f"Weekly report sent: {len(week_trades)} trades, P&L={sign}${total_pnl:.2f}")
+
+    except Exception as e:
+        log.error(f"send_weekly_report error: {e}")

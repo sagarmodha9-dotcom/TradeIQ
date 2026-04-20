@@ -587,6 +587,108 @@ def sync_tastytrade_positions(options_client, pt):
     except Exception as e:
         log.error(f"sync_tastytrade_positions: {e}")
 
+
+def run_premarket_scan(ibkr, analyzer, stock_analyzer):
+    """
+    Pre-market scanner: runs 8:00-9:25 AM ET.
+    Scans for gap ups, volume spikes, news catalysts.
+    Builds priority watchlist for market open.
+    """
+    from datetime import datetime
+    import pytz
+    import yfinance as yf
+
+    EASTERN = pytz.timezone("US/Eastern")
+    now = datetime.now(EASTERN)
+
+    # Only run during pre-market window
+    pre_start = now.replace(hour=8,  minute=0,  second=0, microsecond=0)
+    pre_end   = now.replace(hour=9,  minute=25, second=0, microsecond=0)
+    if not (pre_start <= now <= pre_end):
+        return []
+
+    log.info("🌅 PRE-MARKET SCAN starting...")
+    watchlist = []
+
+    for symbol in config.STOCK_SYMBOLS:
+        try:
+            ticker = yf.Ticker(symbol)
+            hist   = ticker.history(period="5d", interval="1d", timeout=5)
+            if len(hist) < 2:
+                continue
+
+            prev_close   = float(hist["Close"].iloc[-2])
+            prev_volume  = float(hist["Volume"].iloc[-2])
+            avg_volume   = float(hist["Volume"].iloc[-5:].mean())
+
+            # Get pre-market price
+            info = ticker.fast_info
+            pre_price = getattr(info, "last_price", None) or prev_close
+
+            gap_pct      = (pre_price - prev_close) / prev_close * 100
+            volume_ratio = prev_volume / avg_volume if avg_volume > 0 else 1.0
+
+            # Score the symbol
+            score = 0
+            reasons = []
+
+            if gap_pct >= 2.0:
+                score += 3
+                reasons.append(f"gap up {gap_pct:.1f}%")
+            elif gap_pct >= 1.0:
+                score += 1
+                reasons.append(f"gap up {gap_pct:.1f}%")
+            elif gap_pct <= -2.0:
+                score -= 2
+                reasons.append(f"gap down {gap_pct:.1f}%")
+
+            if volume_ratio >= 2.0:
+                score += 2
+                reasons.append(f"volume {volume_ratio:.1f}x avg")
+            elif volume_ratio >= 1.5:
+                score += 1
+                reasons.append(f"volume {volume_ratio:.1f}x avg")
+
+            # News sentiment boost
+            try:
+                sentiment = news_sentiment.get_sentiment(symbol)
+                if sentiment and sentiment.get("safe") and sentiment.get("sentiment") == "positive":
+                    score += 2
+                    reasons.append("positive news")
+                elif sentiment and not sentiment.get("safe"):
+                    score -= 3
+                    reasons.append("negative news")
+            except:
+                pass
+
+            if score >= 2:
+                watchlist.append({
+                    "symbol":       symbol,
+                    "score":        score,
+                    "gap_pct":      round(gap_pct, 2),
+                    "volume_ratio": round(volume_ratio, 2),
+                    "pre_price":    round(pre_price, 2),
+                    "reasons":      reasons,
+                })
+                log.info(f"🌅 PRE-MARKET {symbol}: score={score} gap={gap_pct:+.1f}% vol={volume_ratio:.1f}x | {', '.join(reasons)}")
+
+        except Exception as e:
+            log.warning(f"Pre-market scan {symbol}: {e}")
+
+    # Sort by score descending
+    watchlist.sort(key=lambda x: x["score"], reverse=True)
+
+    if watchlist:
+        log.info(f"🌅 PRE-MARKET top picks: {[w['symbol'] for w in watchlist[:5]]}")
+        # Save to file so main scan can use it
+        with open("premarket_watchlist.json", "w") as f:
+            import json
+            json.dump(watchlist, f, indent=2)
+    else:
+        log.info("🌅 PRE-MARKET: no high-score symbols found")
+
+    return watchlist
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--paper", action="store_true")
@@ -619,10 +721,23 @@ def main():
     log.info(f"Portfolio — Stocks:${pt.stock_balance:,.2f} | Total:${pt.stock_balance:,.2f}\n")
     while _running:
         try:
+            # Pre-market scanner (8:00-9:25 AM)
+            run_premarket_scan(ibkr, analyzer, stock_analyzer)
             run_scan(cb, ibkr, analyzer, stock_analyzer, tm, pt, options_client, options_analyzer)
         except Exception as e:
             log.error(f"Scan error: {e}", exc_info=True)
         if args.once or not _running: break
+        # Weekly report — every Friday after market close
+        try:
+            from datetime import datetime
+            import pytz
+            now_et = datetime.now(pytz.timezone("US/Eastern"))
+            if now_et.weekday() == 4 and now_et.hour == 16 and now_et.minute < 6:
+                from notifier import send_weekly_report
+                send_weekly_report()
+                log.info("📊 Weekly report sent")
+        except Exception as _we:
+            log.error(f"Weekly report error: {_we}")
         log.info(f"Next scan in {config.SCAN_INTERVAL}s. Ctrl+C to stop.\n")
         for _ in range(config.SCAN_INTERVAL):
             if not _running: break

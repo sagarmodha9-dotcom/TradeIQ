@@ -10,6 +10,49 @@ _KILL_ACTIVE = False
 EASTERN = pytz.timezone("US/Eastern")
 _vix_cache = {"value": None, "fetched_at": None}
 _pending_order_ids = set()
+_spy_cache = {"value": None, "pct_change": None, "fetched_at": None}
+
+def get_spy_change():
+    """Get SPY % change today. Cached for 5 minutes."""
+    from datetime import timezone
+    now = datetime.now(timezone.utc)
+    if _spy_cache["fetched_at"] and (now - _spy_cache["fetched_at"]).total_seconds() < 300:
+        return _spy_cache["pct_change"]
+    try:
+        import yfinance as _yf
+        hist = _yf.Ticker("SPY").history(period="2d", interval="1d", timeout=3)
+        if len(hist) >= 2:
+            prev_close = float(hist["Close"].iloc[-2])
+            curr_close = float(hist["Close"].iloc[-1])
+            pct = (curr_close - prev_close) / prev_close * 100
+            _spy_cache["value"] = curr_close
+            _spy_cache["pct_change"] = pct
+            _spy_cache["fetched_at"] = now
+            return pct
+    except Exception:
+        pass
+    return _spy_cache["pct_change"] or 0.0
+
+def get_sector_filter(confidence):
+    """
+    Sector filter based on SPY performance.
+    Down >1.5%  → require 80%+ confidence (strong market headwind)
+    Down >0.75% → require 76%+ confidence (mild headwind)
+    Up           → normal 72% confidence
+    Returns (allowed, required_confidence, reason)
+    """
+    spy_chg = get_spy_change()
+    if spy_chg <= -1.5:
+        required = 0.80
+        if confidence < required:
+            return False, required, f"SPY down {spy_chg:.1f}% — need {required:.0%} confidence"
+        return True, required, f"SPY down {spy_chg:.1f}% — elevated threshold applied"
+    elif spy_chg <= -0.75:
+        required = 0.76
+        if confidence < required:
+            return False, required, f"SPY down {spy_chg:.1f}% — need {required:.0%} confidence"
+        return True, required, f"SPY down {spy_chg:.1f}% — mild threshold applied"
+    return True, 0.72, f"SPY {spy_chg:+.1f}% — normal threshold"
 
 def activate_kill_switch(reason="manual"):
     global _KILL_ACTIVE
@@ -138,6 +181,13 @@ def check_all(symbol, confidence, account_balance):
             return False, f"max stock positions ({config.MAX_OPEN_POSITIONS}) reached"
     if confidence < config.MIN_CONFIDENCE:
         return False, f"confidence {confidence:.0%} < min {config.MIN_CONFIDENCE:.0%}"
+    # Sector filter — raise confidence bar on down market days
+    if "_OPT" not in symbol:
+        allowed, required, reason = get_sector_filter(confidence)
+        if not allowed:
+            return False, f"sector filter: {reason}"
+        if required > config.MIN_CONFIDENCE:
+            log.info(f"[SECTOR] {reason}")
     if is_high_volatility():
         return False, f"high VIX ({get_vix():.1f})"
     if is_duplicate_order(symbol):

@@ -388,32 +388,50 @@ def monitor_option_positions(options_client):
                     p["current_price"] = current
                     updated = True
                     log.info(f"OPTIONS {p['product_id']} @ ${current:.2f} PnL: ${pnl:+.2f} ({pnl_pct:+.1f}%)")
-                    # Email alerts for big moves
+                    # Smart TP: 7-14 days = 50% TP, 15+ days = 100% TP
                     try:
                         from notifier import alert_trade_closed
-                        if pnl_pct >= 50 and not p.get("alerted_tp"):
-                            alert_trade_closed(p["product_id"], "BUY", p["entry_price"], current, pnl, pnl_pct, "options_tp_alert", "options")
-                            p["alerted_tp"] = True
-                            log.info(f"OPTIONS ALERT SENT: {p['product_id']} +{pnl_pct:.1f}%")
-                        elif pnl_pct <= -50 and not p.get("alerted_sl"):
-                            alert_trade_closed(p["product_id"], "BUY", p["entry_price"], current, pnl, pnl_pct, "options_sl_alert", "options")
-                        if pnl_pct <= -30:
-                            log.warning(f"OPTIONS AUTO-CLOSE {p['product_id']}: down {pnl_pct:.1f}% — cutting loss")
+                        from datetime import datetime, date
+                        import re as _re
+
+                        # Parse days to expiry from symbol e.g. GOOGL 260427C00347500
+                        days_to_expiry = 999
+                        try:
+                            m = _re.search(r'(\d{2})(\d{2})(\d{2})[CP]', p["product_id"].replace(" ",""))
+                            if m:
+                                exp = date(2000+int(m.group(1)), int(m.group(2)), int(m.group(3)))
+                                days_to_expiry = (exp - date.today()).days
+                        except:
+                            pass
+
+                        # Set TP threshold based on days to expiry
+                        tp_threshold = 50 if days_to_expiry <= 14 else 100
+                        log.info(f"OPTIONS {p['product_id']} DTE={days_to_expiry} TP={tp_threshold}%")
+
+                        def _close_option(reason):
                             try:
-                                from options_client import OptionsClient
-                                oc = options_client
-                                oc.place_option_order(p["product_id"], qty=1, side="sell")
+                                options_client.place_option_order(p["product_id"], qty=1, side="sell")
                             except Exception as ce:
                                 log.error(f"Options close order failed: {ce}")
-                            p["status"] = "closed_sl"
+                            p["status"] = reason
                             from trade_history import save_trade
                             save_trade({**p, "exit_price": current, "pnl_usd": pnl, "pnl_pct": pnl_pct, "market": "options"})
                             state["positions"] = [x for x in state["positions"] if x.get("product_id") != p["product_id"]]
                             with open("bot_state.json", "w") as _f:
                                 import json as _j
                                 _j.dump(state, _f, indent=2, default=str)
+                            log.info(f"OPTIONS AUTO-CLOSED: {p['product_id']} {pnl_pct:.1f}% ({reason})")
+
+                        if pnl_pct >= tp_threshold and not p.get("alerted_tp"):
+                            log.info(f"OPTIONS TP HIT {p['product_id']}: +{pnl_pct:.1f}% (threshold={tp_threshold}%)")
+                            alert_trade_closed(p["product_id"], "BUY", p["entry_price"], current, pnl, pnl_pct, "options_tp", "options")
+                            _close_option("closed_tp")
+                        elif pnl_pct <= -50 and not p.get("alerted_sl"):
+                            alert_trade_closed(p["product_id"], "BUY", p["entry_price"], current, pnl, pnl_pct, "options_sl_alert", "options")
                             p["alerted_sl"] = True
-                            log.info(f"OPTIONS AUTO-CLOSED: {p['product_id']} {pnl_pct:.1f}%")
+                        if pnl_pct <= -30 and p.get("status") != "closed_sl":
+                            log.warning(f"OPTIONS AUTO-CLOSE {p['product_id']}: down {pnl_pct:.1f}% — cutting loss")
+                            _close_option("closed_sl")
                     except Exception as ne:
                         log.error(f"Options notify error: {ne}")
                 else:

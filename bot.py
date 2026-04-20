@@ -490,7 +490,7 @@ def run_options_scan(options_client, options_analyzer, stock_signals, pt):
                     "take_profit": 0,
                     "confidence":  opt_signal["confidence"],
                     "reasoning":   opt_signal.get("reasoning", ""),
-                    "opened_at":   fill["timestamp"],
+                    "opened_at":   fill.get("timestamp", datetime.now().isoformat()),
                     "market":      "options",
                     "pnl_usd":     0.0,
                 })

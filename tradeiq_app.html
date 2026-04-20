@@ -496,9 +496,30 @@ setInterval(rmFetch, 15000);
   <!-- WEEK TO DATE + DAILY LOSS LIMIT -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
     <div class="hcard">
-      <div class="hcard-tit">Week To Date</div>
+      <div class="hcard-tit" style="display:flex;justify-content:space-between;align-items:center">
+        <span>Week To Date</span>
+        <div style="display:flex;gap:4px" id="wtd-week-tabs"></div>
+      </div>
       <div id="wtd-pnl" style="font-size:24px;font-weight:700;color:var(--green);margin:10px 0">$0.00</div>
-      <div id="wtd-trades" style="font-size:10px;color:var(--text3);font-family:var(--mono)">0 trades this week</div>
+      <div style="display:flex;gap:16px;margin-bottom:8px">
+        <div>
+          <div style="font-size:9px;color:var(--text3);font-family:var(--mono);text-transform:uppercase">Trades</div>
+          <div id="wtd-trades" style="font-size:13px;font-weight:600;color:var(--text)">0</div>
+        </div>
+        <div>
+          <div style="font-size:9px;color:var(--text3);font-family:var(--mono);text-transform:uppercase">Wins</div>
+          <div id="wtd-wins" style="font-size:13px;font-weight:600;color:var(--green)">0</div>
+        </div>
+        <div>
+          <div style="font-size:9px;color:var(--text3);font-family:var(--mono);text-transform:uppercase">Losses</div>
+          <div id="wtd-losses" style="font-size:13px;font-weight:600;color:var(--red)">0</div>
+        </div>
+        <div>
+          <div style="font-size:9px;color:var(--text3);font-family:var(--mono);text-transform:uppercase">Win Rate</div>
+          <div id="wtd-wr" style="font-size:13px;font-weight:600;color:var(--text)">—</div>
+        </div>
+      </div>
+      <div id="wtd-trade-list" style="max-height:150px;overflow-y:auto"></div>
     </div>
     <div class="hcard">
       <div class="hcard-tit">Daily Loss Limit</div>
@@ -1728,21 +1749,81 @@ async function fetchPremarket() {
   } catch(e) { console.error('fetchPremarket', e); }
 }
 
+let _allTrades = [];
+let _wtdWeekOffset = 0; // 0 = current week, 1 = last week, etc.
+
+function getWeekBounds(offset) {
+  const now = new Date();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - now.getDay() + 1 - (offset * 7));
+  monday.setHours(0,0,0,0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23,59,59,999);
+  return { monday, sunday };
+}
+
+function renderWTD(offset) {
+  _wtdWeekOffset = offset;
+  const { monday, sunday } = getWeekBounds(offset);
+  const weekTrades = _allTrades.filter(t => {
+    const dt = new Date(t.closed_at || t.opened_at || 0);
+    return dt >= monday && dt <= sunday;
+  });
+
+  const wtdPnl = weekTrades.reduce((s, t) => s + (t.pnl_usd || 0), 0);
+  const wins = weekTrades.filter(t => t.pnl_usd > 0);
+  const losses = weekTrades.filter(t => t.pnl_usd <= 0);
+  const wr = weekTrades.length > 0 ? Math.round(wins.length / weekTrades.length * 100) + '%' : '—';
+
+  const wtdEl = document.getElementById('wtd-pnl');
+  if (!wtdEl) return;
+  wtdEl.textContent = (wtdPnl >= 0 ? '+$' : '-$') + Math.abs(wtdPnl).toFixed(2);
+  wtdEl.style.color = wtdPnl >= 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('wtd-trades').textContent = weekTrades.length;
+  document.getElementById('wtd-wins').textContent = wins.length;
+  document.getElementById('wtd-losses').textContent = losses.length;
+  document.getElementById('wtd-wr').textContent = wr;
+
+  // Trade list
+  const listEl = document.getElementById('wtd-trade-list');
+  if (weekTrades.length === 0) {
+    listEl.innerHTML = '<div class="empty-msg" style="font-size:10px">No closed trades this week</div>';
+  } else {
+    listEl.innerHTML = weekTrades.slice().reverse().map(t => {
+      const win = t.pnl_usd > 0;
+      const time = t.closed_at ? new Date(t.closed_at).toLocaleDateString('en-US', {month:'short', day:'numeric'}) : '--';
+      const mkt = t.market === 'options' ? 'OPT' : 'STK';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-bottom:1px solid var(--border);font-size:11px">
+        <span>${win ? '✅' : '❌'}</span>
+        <span style="font-family:var(--mono);font-weight:600;flex:1">${t.product_id}</span>
+        <span style="font-size:9px;padding:1px 5px;background:var(--bg4);border-radius:3px;font-family:var(--mono)">${mkt}</span>
+        <span style="font-weight:600;color:${win ? 'var(--green)' : 'var(--red)'}">${win ? '+' : ''}$${(t.pnl_usd||0).toFixed(2)}</span>
+        <span style="font-size:9px;color:var(--text3)">${time}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // Update week tabs
+  const tabsEl = document.getElementById('wtd-week-tabs');
+  if (tabsEl) {
+    // Generate tabs for last 4 weeks + current
+    const tabs = [];
+    for (let i = 0; i <= 3; i++) {
+      const { monday: m } = getWeekBounds(i);
+      const label = i === 0 ? 'This week' : m.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+      const active = i === offset;
+      tabs.push(`<button onclick="renderWTD(${i})" style="font-size:9px;padding:2px 7px;border-radius:4px;cursor:pointer;font-family:var(--mono);border:1px solid ${active ? 'var(--blue)' : 'var(--border)'};background:${active ? 'var(--bbg)' : 'var(--bg3)'};color:${active ? 'var(--blue)' : 'var(--text3)'}">${label}</button>`);
+    }
+    tabsEl.innerHTML = tabs.join('');
+  }
+}
+
 async function fetchWTD() {
   try {
     const d = await fetch(RM_API + '/status').then(r => r.json());
-    const trades = d.closed_trades || [];
-    const now = new Date();
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - now.getDay() + 1);
-    monday.setHours(0,0,0,0);
-    const weekTrades = trades.filter(t => new Date(t.closed_at || t.opened_at || 0) >= monday);
-    const wtdPnl = weekTrades.reduce((s, t) => s + (t.pnl_usd || 0), 0);
-    const wtdEl = document.getElementById('wtd-pnl');
-    if (!wtdEl) return;
-    wtdEl.textContent = (wtdPnl >= 0 ? '+$' : '-$') + Math.abs(wtdPnl).toFixed(2);
-    wtdEl.style.color = wtdPnl >= 0 ? 'var(--green)' : 'var(--red)';
-    document.getElementById('wtd-trades').textContent = weekTrades.length + ' trades this week';
+    _allTrades = d.closed_trades || [];
+    renderWTD(_wtdWeekOffset);
   } catch(e) { console.error('fetchWTD', e); }
 }
 

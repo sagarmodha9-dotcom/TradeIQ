@@ -190,7 +190,7 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
                     "risk_reward": signal.get("risk_reward", 2.0),
                     "reasoning":   signal.get("reasoning", ""), "market": "stocks",
                 })
-                if signal["action"] == "BUY" and signal["confidence"] >= config.MIN_CONFIDENCE and symbol not in cooldown:
+                if signal["action"] == "BUY" and signal["confidence"] >= config.MIN_CONFIDENCE and symbol not in _trade_cooldown:
                     # Skip if already have open position in this symbol
                     existing_syms = [p.get("product_id") for p in existing_positions]
                     if symbol in existing_syms:
@@ -233,7 +233,7 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
             log.error(f"{symbol}: {e}")
     try:
         acct = ibkr.get_account()
-        pt.update_stock_balance(float(acct.get("equity", 100000)))
+        pass  # balance managed by config
     except Exception:
         pass
     return signals, positions

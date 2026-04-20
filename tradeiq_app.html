@@ -999,7 +999,7 @@ function renderNews(sigs){
     {c:'var(--blue)',t:`AI Analysis: ${buys.length} BUY · ${sells.length} SELL · ${holds.length} HOLD across ${sigs.length} markets`,m:'Latest bot scan · '+now()},
 
     {c:'var(--purple)',t:`Top stock signal: ${topStock?topStock.product_id+' at '+Math.round(topStock.confidence*100)+'% confidence':'No BUY signals'}`,m:'Stock market · '+(new Date().getHours()>=9&&new Date().getHours()<16?'Open now':'Market closed')},
-    {c:'var(--amber)',t:'Strategy: Balanced · Quarter-Kelly · 3% SL / 6% TP · Min 72% confidence · Paper trading mode',m:'Bot configuration · Active'},
+    {c:'var(--amber)',t:'Strategy: Balanced · Quarter-Kelly · 3% SL / 6% TP · Min 72% confidence · Live trading mode',m:'Bot configuration · Active'},
   ];
   el.innerHTML=items.map(i=>`<div class="news-item"><div class="ndot" style="background:${i.c}"></div><div><div class="ntit">${i.t}</div><div class="nmeta">${i.m}</div></div></div>`).join('');
 }

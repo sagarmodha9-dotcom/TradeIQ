@@ -426,8 +426,27 @@ def monitor_option_positions(options_client):
 
                         if pnl_pct >= tp_threshold and not p.get("alerted_tp"):
                             log.info(f"OPTIONS TP HIT {p['product_id']}: +{pnl_pct:.1f}% (threshold={tp_threshold}%)")
-                            alert_trade_closed(p["product_id"], "BUY", p["entry_price"], current, pnl, pnl_pct, "options_tp", "options")
-                            _close_option("closed_tp")
+                            # Profit ladder: sell half at TP, let rest ride free
+                            if p.get("quantity", 1) >= 2 and not p.get("ladder_triggered"):
+                                try:
+                                    options_client.place_option_order(p["product_id"], qty=1, side="sell")
+                                    p["ladder_triggered"] = True
+                                    p["quantity"] = p.get("quantity", 2) - 1
+                                    p["cost_basis_recovered"] = True
+                                    new_tp = tp_threshold * 2  # let rest run to 2x
+                                    log.info(f"💰 LADDER: sold half {p['product_id']} at +{pnl_pct:.1f}% — letting rest ride to +{new_tp:.0f}%")
+                                    from notifier import send_email
+                                    send_email(
+                                        f"TradeIQ 💰 LADDER — {p['product_id']} half closed +{pnl_pct:.1f}%",
+                                        f"Sold 1 contract at +{pnl_pct:.1f}% (${pnl/2:.2f} profit)\nLetting remaining contract ride free to +{new_tp:.0f}%\nCost basis fully recovered."
+                                    )
+                                except Exception as le:
+                                    log.error(f"Ladder sell error: {le}")
+                                    alert_trade_closed(p["product_id"], "BUY", p["entry_price"], current, pnl, pnl_pct, "options_tp", "options")
+                                    _close_option("closed_tp")
+                            else:
+                                alert_trade_closed(p["product_id"], "BUY", p["entry_price"], current, pnl, pnl_pct, "options_tp", "options")
+                                _close_option("closed_tp")
                         elif pnl_pct <= -50 and not p.get("alerted_sl"):
                             alert_trade_closed(p["product_id"], "BUY", p["entry_price"], current, pnl, pnl_pct, "options_sl_alert", "options")
                             p["alerted_sl"] = True
@@ -528,6 +547,7 @@ def run_scan(cb, ibkr, analyzer, stock_analyzer, tm, pt, options_client=None, op
     tm.monitor_positions()
     monitor_stock_positions(ibkr, pt)
     monitor_option_positions(options_client)
+    run_earnings_options_scan(options_client, ibkr)
     stock_signals, stock_pos   = run_stock_scan(ibkr, stock_analyzer, pt)
     options_pos = run_options_scan(options_client, options_analyzer, stock_signals, pt) if options_client else []
     # Crypto disabled - focusing on stocks + options only
@@ -688,6 +708,120 @@ def run_premarket_scan(ibkr, analyzer, stock_analyzer):
         log.info("🌅 PRE-MARKET: no high-score symbols found")
 
     return watchlist
+
+
+def run_earnings_options_scan(options_client, ibkr):
+    """
+    Scan for upcoming earnings 5-10 days out.
+    Automatically buy 30-day calls on strong stocks before earnings.
+    Only runs once per symbol per earnings cycle.
+    """
+    import json, os
+    from datetime import date
+    from earnings_calendar import days_to_earnings, get_earnings_date
+    from options_client import OptionsClient
+
+    if not options_client or not options_client.tt:
+        return
+
+    # Load already-placed earnings plays
+    ep_file = "earnings_plays.json"
+    played = {}
+    if os.path.exists(ep_file):
+        try:
+            with open(ep_file) as f:
+                played = json.load(f)
+        except:
+            played = {}
+
+    # Check buying power first
+    try:
+        bp = options_client.tt.get_balance()
+        if bp < 150:
+            log.info(f"Earnings scan: insufficient buying power (${bp:.2f})")
+            return
+    except:
+        return
+
+    for symbol in config.STOCK_SYMBOLS:
+        try:
+            dte = days_to_earnings(symbol)
+            if dte is None or not (5 <= dte <= 10):
+                continue
+
+            # Already played this earnings cycle?
+            ed = str(get_earnings_date(symbol))
+            key = f"{symbol}_{ed}"
+            if key in played:
+                continue
+
+            # Check open options count
+            with open("bot_state.json") as f:
+                state = json.load(f)
+            existing_opts = [p for p in state.get("positions", []) if p.get("market") == "options"]
+            if len(existing_opts) >= 4:
+                log.info(f"Earnings scan {symbol}: max options reached")
+                continue
+
+            # Already have this symbol in options?
+            if any(symbol in p.get("underlying","") for p in existing_opts):
+                log.info(f"Earnings scan {symbol}: already have options position")
+                continue
+
+            log.info(f"🎯 EARNINGS PLAY: {symbol} reports in {dte} days — looking for call...")
+
+            # Use 30-day expiry for earnings plays (capture full move)
+            contract = options_client.find_best_option(symbol, "call", budget=200)
+            if not contract:
+                log.info(f"Earnings play {symbol}: no suitable contract found")
+                continue
+
+            fill = options_client.place_option_order(contract.get("symbol",""), qty=1, side="buy")
+            if fill and fill.get("success"):
+                cost = float(contract.get("close_price", 0)) * 100
+                contract_sym = contract.get("symbol", "")
+
+                # Save to positions
+                state["positions"].append({
+                    "product_id":  contract_sym,
+                    "underlying":  symbol,
+                    "strategy":    "earnings_call",
+                    "side":        "BUY",
+                    "entry_price": float(contract.get("close_price", 0)),
+                    "quantity":    1,
+                    "usd_value":   cost,
+                    "stop_loss":   0,
+                    "take_profit": 0,
+                    "confidence":  0.75,
+                    "reasoning":   f"Earnings play — {symbol} reports in {dte} days",
+                    "opened_at":   datetime.now().isoformat(),
+                    "market":      "options",
+                    "pnl_usd":     0.0,
+                    "earnings_play": True,
+                })
+                with open("bot_state.json", "w") as f:
+                    json.dump(state, f, indent=2)
+
+                # Mark as played
+                played[key] = datetime.now().isoformat()
+                with open(ep_file, "w") as f:
+                    json.dump(played, f, indent=2)
+
+                from notifier import send_email
+                send_email(
+                    f"TradeIQ 🎯 EARNINGS PLAY — {symbol} call bought",
+                    f"Symbol:    {symbol}\n"
+                    f"Contract:  {contract_sym}\n"
+                    f"Cost:      ${cost:.2f}\n"
+                    f"Earnings:  {dte} days away\n"
+                    f"Strategy:  Buy call before earnings, close after announcement"
+                )
+                log.info(f"🎯 EARNINGS PLAY placed: {symbol} {contract_sym} cost=${cost:.2f}")
+            else:
+                log.warning(f"Earnings play {symbol}: order failed")
+
+        except Exception as e:
+            log.error(f"Earnings scan {symbol}: {e}")
 
 def main():
     parser = argparse.ArgumentParser()

@@ -56,7 +56,7 @@ class OptionsClient:
                     else:
                         pct_otm = (current_price - strike) / current_price
 
-                    if not (0.01 <= pct_otm <= 0.06):
+                    if not (0.005 <= pct_otm <= 0.10):
                         continue
 
                     # Get live price from Tastytrade or IBKR

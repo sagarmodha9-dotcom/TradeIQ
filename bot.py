@@ -401,7 +401,7 @@ def monitor_option_positions(options_client):
                             log.warning(f"OPTIONS AUTO-CLOSE {p['product_id']}: down {pnl_pct:.1f}% — cutting loss")
                             try:
                                 from options_client import OptionsClient
-                                oc = OptionsClient(ibkr_client=ibkr)
+                                oc = options_client
                                 oc.place_option_order(p["product_id"], qty=1, side="sell")
                             except Exception as ce:
                                 log.error(f"Options close order failed: {ce}")

@@ -129,7 +129,7 @@ def check_all(symbol, confidence, account_balance):
     # Separate limits for stocks and options
     # Detect options by symbol format (e.g. TSLA260422C00350000 or TSLA  260422C00350000)
     import re
-    market = "options" if re.search(r'[A-Z]{1,5}\s*\d{6}[CP]\d{8}', symbol) else "stocks"
+    market = "options" if "_OPT" in symbol or re.search(r"[A-Z]{1,5}\s*\d{6}[CP]\d{8}", symbol) else "stocks"
     if market == "options":
         if get_open_options_count() >= config.MAX_OPEN_OPTIONS:
             return False, f"max options positions ({config.MAX_OPEN_OPTIONS}) reached"

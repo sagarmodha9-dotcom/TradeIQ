@@ -271,9 +271,57 @@ class Handler(BaseHTTPRequestHandler):
             weak  = win_rate_tracker.get_weak_symbols()
             self._json({"stats": stats, "weak_symbols": weak})
         elif path == "/earnings":
-            from earnings_calendar import get_earnings_summary
+            from earnings_calendar import get_earnings_summary, days_to_earnings, get_earnings_date
             summary = get_earnings_summary(config.STOCK_SYMBOLS)
-            self._json({"earnings": summary})
+            # Add upcoming earnings sorted by date
+            upcoming = []
+            for sym, data in summary.items():
+                if data.get("days_to_earnings") is not None and 0 <= data["days_to_earnings"] <= 14:
+                    upcoming.append({
+                        "symbol": sym,
+                        "days": data["days_to_earnings"],
+                        "date": data["earnings_date"],
+                        "soon": data["has_earnings_soon"],
+                    })
+            upcoming.sort(key=lambda x: x["days"])
+            self._json({"earnings": summary, "upcoming": upcoming})
+
+        elif path == "/premarket":
+            import os, json as _j
+            if os.path.exists("premarket_watchlist.json"):
+                try:
+                    with open("premarket_watchlist.json") as f:
+                        wl = _j.load(f)
+                    self._json({"watchlist": wl, "count": len(wl)})
+                except:
+                    self._json({"watchlist": [], "count": 0})
+            else:
+                self._json({"watchlist": [], "count": 0})
+
+        elif path == "/sector":
+            import risk_manager
+            spy_chg = risk_manager.get_spy_change()
+            allowed, required, reason = risk_manager.get_sector_filter(0.72)
+            if spy_chg <= -1.5:
+                status = "bearish"
+                color  = "red"
+            elif spy_chg <= -0.75:
+                status = "cautious"
+                color  = "amber"
+            elif spy_chg >= 1.0:
+                status = "bullish"
+                color  = "green"
+            else:
+                status = "neutral"
+                color  = "text"
+            self._json({
+                "spy_change":  round(spy_chg, 2),
+                "status":      status,
+                "color":       color,
+                "required_confidence": required,
+                "reason":      reason,
+                "filter_active": required > 0.72,
+            })
         elif path == "/market-news":
             import time as _time
             # Return cached news immediately, refresh in background

@@ -447,6 +447,77 @@ setInterval(rmFetch, 15000);
   </div>
 
   <div class="ncard"><div class="hcard-tit" style="margin-bottom:14px">Market Signals & News</div><div class="news-grid" id="hnews"><div class="empty-msg">Loading...</div></div></div>
+
+  <!-- SECTOR FILTER STATUS -->
+  <div class="hcard" style="margin-bottom:14px">
+    <div class="hcard-tit" style="display:flex;justify-content:space-between;align-items:center">
+      <span>Market Conditions</span>
+      <span id="sector-status-badge" style="font-size:9px;padding:2px 8px;border-radius:4px;font-family:var(--mono);background:var(--bg3);color:var(--text3);border:1px solid var(--border)">Loading...</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px">
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px">
+        <div style="font-size:9px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;margin-bottom:4px">SPY Today</div>
+        <div id="sector-spy" style="font-size:16px;font-weight:700;color:var(--text)">--</div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px">
+        <div style="font-size:9px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;margin-bottom:4px">Min Confidence</div>
+        <div id="sector-conf" style="font-size:16px;font-weight:700;color:var(--text)">72%</div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px">
+        <div style="font-size:9px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;margin-bottom:4px">Filter</div>
+        <div id="sector-filter" style="font-size:16px;font-weight:700;color:var(--green)">Normal</div>
+      </div>
+    </div>
+    <div id="sector-reason" style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:8px;padding:6px 10px;background:var(--bg3);border-radius:6px">--</div>
+  </div>
+
+  <!-- EARNINGS CALENDAR -->
+  <div class="hcard" style="margin-bottom:14px">
+    <div class="hcard-tit" style="display:flex;justify-content:space-between;align-items:center">
+      <span>Upcoming Earnings <span class="hcnt" id="earnings-cnt">0</span></span>
+      <span style="font-size:9px;color:var(--text3);font-family:var(--mono)">Next 14 days</span>
+    </div>
+    <div id="earnings-list" style="margin-top:10px">
+      <div class="empty-msg">Loading earnings...</div>
+    </div>
+  </div>
+
+  <!-- PRE-MARKET WATCHLIST -->
+  <div class="hcard" style="margin-bottom:14px">
+    <div class="hcard-tit" style="display:flex;justify-content:space-between;align-items:center">
+      <span>Pre-Market Watchlist <span class="hcnt" id="premarket-cnt">0</span></span>
+      <span style="font-size:9px;color:var(--text3);font-family:var(--mono)">8:00-9:25 AM scan</span>
+    </div>
+    <div id="premarket-list" style="margin-top:10px">
+      <div class="empty-msg">Pre-market scan runs 8:00-9:25 AM ET</div>
+    </div>
+  </div>
+
+  <!-- WEEK TO DATE + DAILY LOSS LIMIT -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+    <div class="hcard">
+      <div class="hcard-tit">Week To Date</div>
+      <div id="wtd-pnl" style="font-size:24px;font-weight:700;color:var(--green);margin:10px 0">$0.00</div>
+      <div id="wtd-trades" style="font-size:10px;color:var(--text3);font-family:var(--mono)">0 trades this week</div>
+    </div>
+    <div class="hcard">
+      <div class="hcard-tit">Daily Loss Limit</div>
+      <div id="dll-val" style="font-size:24px;font-weight:700;color:var(--green);margin:10px 0">$0.00</div>
+      <div style="height:6px;background:var(--bg4);border-radius:3px;margin:6px 0;overflow:hidden">
+        <div id="dll-bar" style="height:100%;width:0%;background:var(--green);border-radius:3px;transition:.5s"></div>
+      </div>
+      <div id="dll-sub" style="font-size:10px;color:var(--text3);font-family:var(--mono)">of $50.00 limit</div>
+    </div>
+  </div>
+
+  <!-- BOT ACTIVITY FEED -->
+  <div class="hcard" style="margin-bottom:14px">
+    <div class="hcard-tit">Bot Activity Feed</div>
+    <div id="activity-feed" style="margin-top:10px;max-height:200px;overflow-y:auto">
+      <div class="empty-msg">No recent activity</div>
+    </div>
+  </div>
+
 </div>
 </div>
 

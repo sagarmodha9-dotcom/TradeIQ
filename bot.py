@@ -463,7 +463,7 @@ def run_options_scan(options_client, options_analyzer, stock_signals, pt):
             if opt_signal["confidence"] < config.MIN_CONFIDENCE:
                 continue
             direction = "call" if "call" in opt_signal["strategy"] else "put"
-            budget = 300 if config.IS_LIVE else 250
+            budget = 200 if config.IS_LIVE else 250
             # Earnings calendar: use weekly options if earnings within 7 days
             expiry_days, expiry_reason = get_options_expiry_days(symbol)
             if has_earnings_soon(symbol):

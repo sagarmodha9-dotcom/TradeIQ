@@ -70,13 +70,19 @@ class OptionsClient:
                     if price < 0.10 or cost > budget:
                         continue
 
+                    # Delta filter — target 0.25-0.55 (sweet spot)
+                    delta = self.get_option_delta(symbol, expiry, strike, option_type)
+                    if not (0.25 <= delta <= 0.55):
+                        continue
+                    c["delta"] = delta
                     c["close_price"] = price
                     c["cost"] = cost
                     candidates.append(c)
 
                 if candidates:
-                    best = sorted(candidates, key=lambda c: float(c.get("close_price", 0)), reverse=True)[0]
-                    log.info(f"Options {symbol}: {option_type} strike={best['strike_price']} expiry={expiry} price=${best['close_price']:.2f}")
+                    # Pick candidate with delta closest to 0.40 (ideal sweet spot)
+                    best = sorted(candidates, key=lambda c: abs(c.get("delta", 0.35) - 0.40))[0]
+                    log.info(f"Options {symbol}: {option_type} strike={best['strike_price']} expiry={expiry} price=${best['close_price']:.2f} delta={best.get('delta',0):.2f}")
                     return best
 
             log.info(f"Options {symbol}: no suitable {option_type} contract found")

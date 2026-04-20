@@ -380,7 +380,7 @@ def monitor_option_positions(options_client):
             if p.get("market") != "options":
                 continue
             try:
-                current = get_option_price_yf(p["product_id"])
+                current = options_client.get_option_price(p["product_id"]) if options_client else get_option_price_yf(p["product_id"])
                 if current > 0:
                     pnl = (current - p["entry_price"]) * 100
                     pnl_pct = (current - p["entry_price"]) / p["entry_price"] * 100
@@ -522,6 +522,51 @@ def run_scan(cb, ibkr, analyzer, stock_analyzer, tm, pt, options_client=None, op
         print("\n" + tabulate(rows, headers=["Symbol","Market","Action","Conf","Entry"], tablefmt="rounded_outline") + "\n")
         save_state(stock_signals, stock_pos + options_pos, pt)
 
+
+def sync_tastytrade_positions(options_client, pt):
+    """Sync open Tastytrade options positions into bot_state.json on startup."""
+    try:
+        if not options_client or not options_client.tt:
+            return
+        tt_positions = options_client.tt.get_positions()
+        if not tt_positions:
+            return
+        with open("bot_state.json") as f:
+            state = json.load(f)
+        existing_ids = [p.get("product_id") for p in state.get("positions", [])]
+        added = 0
+        for p in tt_positions:
+            symbol = p.get("symbol", "")
+            if symbol in existing_ids:
+                continue
+            qty = float(p.get("quantity", 1))
+            price = float(p.get("average-open-price", 0))
+            cost = price * 100 * qty
+            state["positions"].append({
+                "product_id":  symbol,
+                "underlying":  symbol[:4].strip(),
+                "strategy":    "buy_call",
+                "side":        "BUY",
+                "entry_price": price,
+                "quantity":    int(qty),
+                "usd_value":   cost,
+                "stop_loss":   0,
+                "take_profit": 0,
+                "confidence":  0.72,
+                "reasoning":   "Synced from Tastytrade on startup",
+                "opened_at":   datetime.now().isoformat(),
+                "market":      "options",
+                "pnl_usd":     0.0,
+            })
+            added += 1
+            log.info(f"✅ Synced Tastytrade position: {symbol}")
+        if added > 0:
+            with open("bot_state.json", "w") as f:
+                json.dump(state, f, indent=2)
+            log.info(f"Tastytrade sync: {added} positions added")
+    except Exception as e:
+        log.error(f"sync_tastytrade_positions: {e}")
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--paper", action="store_true")
@@ -546,6 +591,7 @@ def main():
 
 
     pt             = PortfolioTracker()
+    sync_tastytrade_positions(options_client, pt)
     analyzer       = Analyzer()
     stock_analyzer = StockAnalyzer()
     tm             = TradeManager(cb, portfolio_tracker=pt)

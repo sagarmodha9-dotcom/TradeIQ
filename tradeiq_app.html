@@ -890,7 +890,7 @@ function renderHome(d,cp,sp,total,cpnl,spnl,tpnl){
   renderHPos(op);renderHTrades(d.closed_trades||d.recent_trades||[]);renderNews(d.last_signals||[]);
 }
 function parseOptContract(pid){
-  const m=pid.replace(' ','').match(/^([A-Z]+)(\d{2})(\d{2})(\d{2})([CP])(\d+)$/);
+  const m=pid.replace(/ +/g,'').match(/^([A-Z]+)(\d{2})(\d{2})(\d{2})([CP])(\d+)$/);
   if(!m)return null;
   const sym=m[1],y='20'+m[2],mo=m[3],d=m[4],cp=m[5],strike=parseInt(m[6])/1000;
   const expiry=new Date(y,mo-1,d).toLocaleDateString('en-US',{month:'short',day:'numeric'});

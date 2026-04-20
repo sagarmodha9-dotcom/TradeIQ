@@ -270,11 +270,13 @@ def monitor_stock_positions(ibkr, pt):
                     if trail_sl > sl:
                         pos["stop_loss"] = trail_sl
                         sl = trail_sl
+                        log.info(f"🔒 TRAIL SL {symbol} → ${trail_sl:.2f} (price=${current:.2f} +{pnl_pct:.1f}%)")
                 elif current >= entry * 1.03:
                     breakeven_sl = round(entry * 1.001, 4)
                     if breakeven_sl > sl:
                         pos["stop_loss"] = breakeven_sl
                         sl = breakeven_sl
+                        log.info(f"🔒 BREAKEVEN SL {symbol} → ${breakeven_sl:.2f} (price=${current:.2f} +{pnl_pct:.1f}%)")
                 pnl = (current - entry) * float(pos["quantity"])
                 pnl_pct = (current - entry) / entry * 100
                 if current <= sl:

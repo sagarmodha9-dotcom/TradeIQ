@@ -1366,7 +1366,7 @@ goPage = function(p) {
       const openOptsPnl=(lastD.open_positions||[]).filter(p=>p.market==='options').reduce((a,p)=>a+(p.pnl_usd||0),0);
       const totalOpts=oPnl+openOptsPnl;
       const total=sPnl+cPnl+totalOpts;
-      const portfolio=1500+total;
+      const portfolio=(lastD.portfolio_usd||lastD.stock_portfolio||1000)+totalOpts;
       const wins=trades.filter(t=>t.pnl_usd>0).length;
       const wr=trades.length?Math.round(wins/trades.length*100):0;
       const tv=document.getElementById('hist-total-val');

@@ -1384,7 +1384,7 @@ goPage = function(p) {
 document.getElementById('titime').textContent=now();
 mkHChart();mkTChart();
   // Restore cached data instantly
-  try{const rc=localStorage.getItem("tiq_risk_cache");if(rc){try{const rd=JSON.parse(rc);lastRiskData=rd;document.getElementById("rm-vix").textContent=rd.vix?rd.vix.toFixed(1):"--";const pe=document.getElementById("rm-pnl");if(pe){pe.textContent=(rd.daily_pnl>=0?"+":"")+"$"+(rd.daily_pnl||0).toFixed(2);pe.style.color=rd.daily_pnl<0?"var(--red)":"var(--green)";}}catch(e){}}const c=localStorage.getItem("tiq_cache");if(c){const d=JSON.parse(c);lastD=d;renderAll(d);setOnline(true);}}catch(e){}
+  try{const rc=localStorage.getItem("tiq_risk_cache");if(rc){try{const rd=JSON.parse(rc);lastRiskData=rd;document.getElementById("rm-vix").textContent=rd.vix?rd.vix.toFixed(1):"--";const pe=document.getElementById("rm-pnl");if(pe){const rmPnl=lastD?lastD.daily_pnl||0:rd.daily_pnl||0;pe.textContent=(rmPnl>=0?"+":"")+"$"+Math.abs(rmPnl).toFixed(2);pe.style.color=rmPnl<0?"var(--red)":"var(--green)";}}catch(e){}}const c=localStorage.getItem("tiq_cache");if(c){const d=JSON.parse(c);lastD=d;renderAll(d);setOnline(true);}}catch(e){}
   fetchStatus();setInterval(fetchStatus,15000);
 setInterval(()=>{if(document.getElementById('page-forecast').classList.contains('active'))loadForecast();},300000);
 

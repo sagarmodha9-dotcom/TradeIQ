@@ -225,7 +225,7 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
                             "confidence":  signal["confidence"],
                             "reasoning":   signal.get("reasoning", ""),
                             "key_signals": signal.get("key_signals", []),
-                            "indicators":  signal.get("indicators", {}),
+                            "indicators":  {k: int(v) if isinstance(v, bool) else v for k, v in signal.get("indicators", {}).items()},
                             "opened_at":   datetime.now().isoformat(),
                             "market":      "stocks", "pnl_usd": 0.0,
                         })

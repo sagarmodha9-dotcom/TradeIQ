@@ -185,7 +185,7 @@ class StockAnalyzer:
             log.error(f"{symbol}: Indicator error: {e}")
             return None
         try:
-          indicators = {k: (v if v is not None else 0) for k, v in indicators.items()}
+          indicators = {k: (v if v is not None else 0) if not isinstance(v, dict) else {dk: (dv if dv is not None else 0) for dk, dv in v.items()} for k, v in indicators.items()}
         except: pass
         user_msg = (
             f"Analyze stock {symbol} for precise entry timing.\n"

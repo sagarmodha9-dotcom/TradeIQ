@@ -960,7 +960,7 @@ function renderHome(d,cp,sp,total,cpnl,spnl,tpnl){
   document.getElementById('hmode').textContent=d.mode==='live'?'LIVE':'PAPER';document.getElementById('hmode').className='stag '+(d.mode==='live'?'tlive':'tpaper');
   document.getElementById('htotal').textContent='$'+total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
   // Use daily P&L from risk endpoint for "today" display
-  const dailyPnlToday = (typeof lastRiskData !== 'undefined' && lastRiskData) ? (lastRiskData.daily_pnl || 0) : tpnl;
+  const dailyPnlToday = d.daily_pnl || tpnl || 0;
   const hce=document.getElementById('htotalchg');hce.textContent=pf(dailyPnlToday)+' today';hce.className='hero-chg '+pc(dailyPnlToday);
   document.getElementById('hcval').textContent='$'+cp.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});document.getElementById('hoval').textContent='$'+cp.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});const hopEl=document.getElementById('hopnl');if(hopEl){hopEl.textContent='P&L: '+pf(cpnl);hopEl.className='hsc-pnl '+pc(cpnl);}
   const hcpEl=document.getElementById('hcpnl');hcpEl.textContent='P&L: '+pf(cpnl);hcpEl.className='hsc-pnl '+pc(cpnl);

@@ -149,7 +149,7 @@ class TastytradeClient:
             return {"success": False}
         try:
             action = "Buy to Open" if side.lower() == "buy" else "Sell to Close"
-            tif = "Day" if side.lower() == "buy" else "GTC"
+            tif = "Day"
             order = {
                 "time-in-force": tif,
                 "order-type": "Market",

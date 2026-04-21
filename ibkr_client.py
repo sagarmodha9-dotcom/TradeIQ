@@ -42,9 +42,14 @@ class IBKRClient:
     def get_account(self):
         self._ensure_connected()
         try:
+            result = {}
             for v in self.ib.accountValues():
                 if v.tag == "NetLiquidation" and v.currency == "USD":
-                    return {"portfolio_value": float(v.value)}
+                    result["net_liquidation"] = float(v.value)
+                if v.tag == "NetLiquidation" and v.currency == "USD":
+                    result["portfolio_value"] = float(v.value)
+            if result:
+                return result
         except Exception as e:
             log.error(f"IBKR get_account: {e}")
         return {"portfolio_value": 0.0}

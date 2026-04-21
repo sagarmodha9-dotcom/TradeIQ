@@ -75,8 +75,15 @@ def save_state(stock_signals, positions, pt):
         opts_cost = sum(p.get("usd_value", 0) for p in opts_positions)
         total_pnl = stock_pnl + opts_pnl
         total_balance = stock_balance + opts_pnl
+        # Safe JSON serializer — converts booleans and non-serializable types
+        def _safe(obj):
+            if isinstance(obj, bool): return int(obj)
+            if isinstance(obj, dict): return {k: _safe(v) for k, v in obj.items()}
+            if isinstance(obj, list): return [_safe(i) for i in obj]
+            try: json.dumps(obj); return obj
+            except: return str(obj)
         with open("bot_state.json", "w") as f:
-            json.dump({
+            json.dump(_safe({
                 "signals":          stock_signals,
                 "scanned_at":       datetime.now().isoformat(),
                 "positions":        all_positions,
@@ -92,7 +99,7 @@ def save_state(stock_signals, positions, pt):
                 "options_open":     len(opts_positions),
                 "stock_win_rate":   port["stock_win_rate"],
                 "stock_trades":     port["stock_trades"],
-            }, f)
+            }), f)
         log.info(f"Portfolio — Stocks:${stock_balance:,.2f} | Options P&L:${opts_pnl:+.2f} | Total:${total_balance:,.2f}")
     except Exception as e:
         log.error(f"Could not save state: {e}")

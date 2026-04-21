@@ -129,50 +129,47 @@ def compute_indicators(bars):
     price_vs_vwap = round((current/vwap-1)*100, 2) if vwap > 0 else 0
 
     return {
-        "current_price":   round(current, 4),
-        "high_24h":        round(max(highs[-8:]) if len(highs) >= 8 else max(highs), 4),
-        "low_24h":         round(min(lows[-8:])  if len(lows)  >= 8 else min(lows),  4),
-        "rsi_14":          rsi,
-        "rsi_divergence":  rsi_div,
-        "macd":            macd,
-        "bollinger":       bb,
-        "bollinger_squeeze": bb_squeeze,
-        "ema_9":           round(ema9, 4),
-        "ema_20":          round(ema20, 4),
-        "ema_50":          round(ema50, 4) if ema50 else None,
-        "ema_alignment":   ema_aligned,
-        "price_vs_ema20":  round((current/ema20-1)*100, 2),
-        "vwap":            vwap,
-        "price_vs_vwap":   price_vs_vwap,
-        "volume_ratio":    vol_ratio,
-        "atr":             atr,
+        "current_price":   round(current, 4) if current else 0.0,
+        "high_24h":        round(max(highs[-8:]) if len(highs) >= 8 else max(highs), 4) if highs else 0.0,
+        "low_24h":         round(min(lows[-8:])  if len(lows)  >= 8 else min(lows),  4) if lows else 0.0,
+        "rsi_14":          rsi if rsi else 50.0,
+        "rsi_divergence":  rsi_div if rsi_div else "none",
+        "macd":            macd if macd else {"macd": 0, "signal": 0, "histogram": 0, "crossover": "none"},
+        "bollinger":       bb if bb else {"upper": 0, "middle": 0, "lower": 0, "pct_b": 0.5},
+        "bollinger_squeeze": bb_squeeze if bb_squeeze is not None else False,
+        "ema_9":           round(ema9, 4) if ema9 else 0.0,
+        "ema_20":          round(ema20, 4) if ema20 else 0.0,
+        "ema_50":          round(ema50, 4) if ema50 else 0.0,
+        "ema_alignment":   ema_aligned if ema_aligned else "mixed",
+        "price_vs_ema20":  round((current/ema20-1)*100, 2) if ema20 else 0.0,
+        "vwap":            vwap if vwap else 0.0,
+        "price_vs_vwap":   price_vs_vwap if price_vs_vwap else 0.0,
+        "volume_ratio":    vol_ratio if vol_ratio else 1.0,
+        "atr":             atr if atr else 0.0,
     }
 
-SYSTEM_PROMPT = """You are an expert stock trader using precise technical analysis for entry timing.
-Analyze ALL indicators and output a precise JSON trading signal.
+SYSTEM_PROMPT = """You are an expert stock trader using a BALANCED risk/reward strategy.
+Analyze the technical indicators and output a precise JSON trading signal.
 
-ENTRY RULES — only BUY when ALL of these are true:
-1. RSI 14 between 35-65 (not overbought/oversold)
-2. MACD histogram positive OR bullish crossover
-3. Price above EMA20
-4. Volume ratio >= 0.8 (real participation)
-5. EMA alignment bullish or mixed (not bearish)
-6. Price above VWAP (institutional support)
+Rules:
+- BUY when confidence >= 0.65 and technical picture is positive
+- HOLD when signals are mixed or unclear  
+- Confidence MUST vary by symbol — do not give every stock the same score
+- Use full range: 0.35 weak, 0.50 mixed, 0.65 decent, 0.72 good, 0.80 strong, 0.85 very strong
+- Do NOT be overly conservative — if RSI is healthy, MACD positive, price above EMA20 = BUY at 0.72+
+- Stop loss ~3% from entry. Take profit ~6% from entry (2:1 RR minimum)
 
-AVOID entries when:
-- RSI > 70 (overbought) or RSI < 30 (oversold)
-- Bearish RSI divergence detected
-- Price below EMA20
-- Volume ratio < 0.5 (no conviction)
-- MACD bearish crossover
-
-TIMING:
-- Bollinger squeeze = imminent breakout, wait for direction confirmation
+Good BUY signals:
+- RSI between 40-65 with positive MACD = strong buy
+- Price above EMA20 and EMA9 with volume confirmation = buy
 - Bullish RSI divergence = hidden strength, good entry
-- MACD histogram growing = momentum building, good entry
-- MACD histogram shrinking = momentum fading, avoid or reduce confidence
+- MACD bullish crossover = momentum starting
 
-Stop loss ~3% from entry. Take profit ~6% from entry (2:1 RR minimum).
+Avoid:
+- RSI above 75 or below 25
+- Price more than 3% below EMA20
+- MACD strongly bearish with no reversal signs
+
 Respond with ONLY valid JSON, no markdown, no preamble.
 Schema: {"action":"BUY"|"SELL"|"HOLD","confidence":<float>,"entry_price":<float>,"stop_loss":<float>,"take_profit":<float>,"risk_reward":<float>,"reasoning":"<string>","key_signals":["<s1>","<s2>","<s3>"]}"""
 
@@ -187,20 +184,23 @@ class StockAnalyzer:
         except Exception as e:
             log.error(f"{symbol}: Indicator error: {e}")
             return None
+        try:
+          indicators = {k: (v if v is not None else 0) for k, v in indicators.items()}
+        except: pass
         user_msg = (
             f"Analyze stock {symbol} for precise entry timing.\n"
-            f"Price: ${indicators['current_price']:,.2f} | "
-            f"High: ${indicators['high_24h']:,.2f} | Low: ${indicators['low_24h']:,.2f}\n"
-            f"RSI(14): {indicators['rsi_14']} | RSI Divergence: {indicators['rsi_divergence']}\n"
-            f"MACD: {indicators['macd']['macd']:.4f} | Signal: {indicators['macd']['signal']:.4f} | "
-            f"Histogram: {indicators['macd']['histogram']:.4f} | Crossover: {indicators['macd']['crossover']}\n"
-            f"Bollinger %B: {indicators['bollinger']['pct_b']} | "
-            f"Squeeze: {indicators['bollinger_squeeze']}\n"
-            f"EMA9: ${indicators['ema_9']:,.2f} | EMA20: ${indicators['ema_20']:,.2f} | "
-            f"EMA Alignment: {indicators['ema_alignment']}\n"
-            f"Price vs EMA20: {indicators['price_vs_ema20']:+.2f}% | "
-            f"Price vs VWAP: {indicators['price_vs_vwap']:+.2f}%\n"
-            f"Volume Ratio: {indicators['volume_ratio']}x avg | ATR: ${indicators['atr']:.2f}\n"
+            f"Price: ${indicators.get('current_price', 0):,.2f} | "
+            f"High: ${indicators.get('high_24h', 0):,.2f} | Low: ${indicators.get('low_24h', 0):,.2f}\n"
+            f"RSI(14): {indicators.get('rsi_14', 50)} | RSI Divergence: {indicators.get('rsi_divergence', 'none')}\n"
+            f"MACD: {indicators.get('macd',{}).get('macd',0):.4f} | Signal: {indicators.get('macd',{}).get('signal',0):.4f} | "
+            f"Histogram: {indicators.get('macd',{}).get('histogram',0):.4f} | Crossover: {indicators.get('macd',{}).get('crossover','none')}\n"
+            f"Bollinger %B: {indicators.get('bollinger',{}).get('pct_b',0.5)} | "
+            f"Squeeze: {indicators.get('bollinger_squeeze', False)}\n"
+            f"EMA9: ${indicators.get('ema_9', 0):,.2f} | EMA20: ${indicators.get('ema_20', 0):,.2f} | "
+            f"EMA Alignment: {indicators.get('ema_alignment', 'unknown')}\n"
+            f"Price vs EMA20: {indicators.get('price_vs_ema20', 0.0):+.2f}% | "
+            f"Price vs VWAP: {indicators.get('price_vs_vwap', 0.0):+.2f}%\n"
+            f"Volume Ratio: {indicators.get('volume_ratio', 1.0)}x avg | ATR: ${indicators.get('atr', 0.0):.2f}\n"
             f"Strategy: 5% position, {config.STOCK_SL_PCT*100:.0f}% SL, {config.STOCK_TP_PCT*100:.0f}% TP. "
             f"Only BUY if entry timing is confirmed by multiple indicators."
         )

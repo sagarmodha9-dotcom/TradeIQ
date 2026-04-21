@@ -2,6 +2,14 @@ import sys
 import os
 import time
 import json
+
+def _safe_json(obj):
+    """Recursively convert non-JSON-serializable types."""
+    if isinstance(obj, bool): return int(obj)
+    if isinstance(obj, dict): return {k: _safe_json(v) for k, v in obj.items()}
+    if isinstance(obj, list): return [_safe_json(i) for i in obj]
+    try: json.dumps(obj); return obj
+    except: return str(obj)
 import signal
 import argparse
 from datetime import datetime
@@ -468,7 +476,7 @@ def monitor_option_positions(options_client):
                 log.error(f"Options monitor error {p['product_id']}: {e}")
         if updated:
             with open("bot_state.json", "w") as f:
-                json.dump(state, f, indent=2)
+                json.dump(_safe_json(state), f, indent=2)
     except Exception as e:
         log.error(f"monitor_option_positions error: {e}")
 
@@ -609,7 +617,7 @@ def sync_tastytrade_positions(options_client, pt):
             log.info(f"✅ Synced Tastytrade position: {symbol}")
         if added > 0:
             with open("bot_state.json", "w") as f:
-                json.dump(state, f, indent=2)
+                json.dump(_safe_json(state), f, indent=2)
             log.info(f"Tastytrade sync: {added} positions added")
     except Exception as e:
         log.error(f"sync_tastytrade_positions: {e}")
@@ -710,7 +718,7 @@ def run_premarket_scan(ibkr, analyzer, stock_analyzer):
         # Save to file so main scan can use it
         with open("premarket_watchlist.json", "w") as f:
             import json
-            json.dump(watchlist, f, indent=2)
+            json.dump(_safe_json(watchlist), f, indent=2)
     else:
         log.info("🌅 PRE-MARKET: no high-score symbols found")
 
@@ -807,12 +815,12 @@ def run_earnings_options_scan(options_client, ibkr):
                     "earnings_play": True,
                 })
                 with open("bot_state.json", "w") as f:
-                    json.dump(state, f, indent=2)
+                    json.dump(_safe_json(state), f, indent=2)
 
                 # Mark as played
                 played[key] = datetime.now().isoformat()
                 with open(ep_file, "w") as f:
-                    json.dump(played, f, indent=2)
+                    json.dump(_safe_json(played), f, indent=2)
 
                 from notifier import send_email
                 send_email(

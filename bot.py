@@ -422,7 +422,7 @@ def monitor_option_positions(options_client):
                             pass
 
                         # Set TP threshold based on days to expiry
-                        tp_threshold = 50 if days_to_expiry <= 14 else 100
+                        tp_threshold = 50 if days_to_expiry <= 5 else 100
                         log.info(f"OPTIONS {p['product_id']} DTE={days_to_expiry} TP={tp_threshold}%")
 
                         def _close_option(reason):

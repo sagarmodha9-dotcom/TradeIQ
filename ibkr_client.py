@@ -94,7 +94,7 @@ class IBKRClient:
         try:
             bar_map = {"1Hour": "1 hour", "1Day": "1 day", "1Min": "1 min"}
             bar_size = bar_map.get(timeframe, "1 hour")
-            days = max(5, limit // 8 + 1)
+            days = max(14, limit // 8 + 1)
             contract = Stock(symbol, "SMART", "USD")
             self.ib.qualifyContracts(contract)
             bars = self.ib.reqHistoricalData(

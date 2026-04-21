@@ -180,7 +180,7 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
     signals, positions = [], []
     for symbol in config.STOCK_SYMBOLS:
         try:
-            bars   = ibkr.get_bars(symbol)
+            bars   = ibkr.get_bars(symbol, timeframe="1Hour", limit=100)
             signal = stock_analyzer.analyze(symbol, bars)
             if signal:
                 signals.append({

@@ -1,1 +1,19 @@
-[]
+[
+  {
+    "product_id": "GOOGL 260427C00347500",
+    "underlying": "GOOGL",
+    "side": "BUY",
+    "market": "options",
+    "entry_price": 2.65,
+    "exit_price": 1.67,
+    "quantity": 1,
+    "usd_value": 265,
+    "pnl_usd": -98.0,
+    "pnl_pct": -37.0,
+    "status": "closed_sl",
+    "confidence": 0.72,
+    "reasoning": "GOOGL earnings Apr 29 \u2014 call position",
+    "opened_at": "2026-04-20T12:00:00",
+    "closed_at": "2026-04-21T10:02:23"
+  }
+]

@@ -6,8 +6,19 @@ from datetime import datetime, timezone
 _cache = {}
 _cache_ttl = 10  # seconds
 
-# Live balance cache
-_balance_cache = {"ibkr": 1000.0, "tt": 500.0, "updated": 0}
+# Live balance cache — read from portfolio_state on startup
+def _load_initial_balance():
+    try:
+        import json, os
+        if os.path.exists("portfolio_state.json"):
+            with open("portfolio_state.json") as f:
+                s = json.load(f)
+            return s.get("stock_balance", 1000.0)
+    except:
+        pass
+    return 1000.0
+
+_balance_cache = {"ibkr": _load_initial_balance(), "tt": 500.0, "updated": 0}
 
 def _refresh_balance_background():
     import threading, time

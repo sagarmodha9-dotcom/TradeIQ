@@ -1,0 +1,52 @@
+[
+  {
+    "symbol": "JPM",
+    "score": 3,
+    "gap_pct": 2.16,
+    "volume_ratio": 1.08,
+    "pre_price": 316.99,
+    "reasons": [
+      "gap up 2.2%"
+    ]
+  },
+  {
+    "symbol": "COIN",
+    "score": 3,
+    "gap_pct": 2.57,
+    "volume_ratio": 1.32,
+    "pre_price": 211.63,
+    "reasons": [
+      "gap up 2.6%"
+    ]
+  },
+  {
+    "symbol": "APP",
+    "score": 3,
+    "gap_pct": 2.88,
+    "volume_ratio": 0.98,
+    "pre_price": 490.96,
+    "reasons": [
+      "gap up 2.9%"
+    ]
+  },
+  {
+    "symbol": "ROKU",
+    "score": 3,
+    "gap_pct": 2.19,
+    "volume_ratio": 1.18,
+    "pre_price": 118.73,
+    "reasons": [
+      "gap up 2.2%"
+    ]
+  },
+  {
+    "symbol": "SHOP",
+    "score": 3,
+    "gap_pct": 3.04,
+    "volume_ratio": 1.11,
+    "pre_price": 135.14,
+    "reasons": [
+      "gap up 3.0%"
+    ]
+  }
+]

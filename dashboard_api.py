@@ -37,7 +37,11 @@ def _refresh_balance_background():
                     from tastytrade_client import TastytradeClient
                     tt = TastytradeClient()
                     if tt.session_token:
-                        _balance_cache["tt"] = tt.get_balance()
+                        live_bal = tt.get_account_balance()
+                        if live_bal > 0:
+                            _balance_cache["tt"] = live_bal
+                        else:
+                            _balance_cache["tt"] = tt.get_balance()
                     _balance_cache["updated"] = time.time()
             except:
                 pass

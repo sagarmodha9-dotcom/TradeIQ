@@ -175,6 +175,43 @@ class TastytradeClient:
             log.error(f"Tastytrade place_option_order {contract_symbol}: {e}")
             return {"success": False, "error": str(e)}
 
+    def get_account_balance(self):
+        """Get live account net liquidation value."""
+        try:
+            data = self._request("GET", f"/accounts/{self.account_number}/balances")
+            bal = data.get("data", {})
+            net_liq = float(bal.get("net-liquidating-value", 0))
+            return net_liq
+        except Exception as e:
+            log.error(f"Tastytrade get_account_balance: {e}")
+            return 0.0
+
+    def get_option_market_price(self, symbol):
+        """Get live market price for an option contract."""
+        try:
+            # Clean symbol for API
+            clean = symbol.strip().replace(" ", "+")
+            data = self._request("GET", f"/option-chains/{clean}/nested")
+            if data and "data" in data:
+                items = data["data"].get("items", [])
+                if items:
+                    return float(items[0].get("mid-price", 0) or 0)
+        except Exception as e:
+            pass
+        try:
+            # Try market data endpoint
+            encoded = symbol.strip().replace("  ", " ")
+            data = self._request("GET", f"/market-data/options?symbols[]={encoded}")
+            if data and "data" in data:
+                items = data["data"].get("items", [])
+                for item in items:
+                    mid = (float(item.get("bid", 0)) + float(item.get("ask", 0))) / 2
+                    if mid > 0:
+                        return mid
+        except Exception as e:
+            pass
+        return 0.0
+
     def get_positions(self):
         """Get all open option positions."""
         try:

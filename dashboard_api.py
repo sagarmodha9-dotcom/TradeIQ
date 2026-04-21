@@ -18,7 +18,19 @@ def _load_initial_balance():
         pass
     return 1000.0
 
-_balance_cache = {"ibkr": _load_initial_balance(), "tt": 500.0, "updated": 0}
+def _load_initial_tt_balance():
+    try:
+        from tastytrade_client import TastytradeClient
+        tt = TastytradeClient()
+        if tt.session_token:
+            bal = tt.get_account_balance()
+            if bal > 0:
+                return bal
+    except:
+        pass
+    return 500.0
+
+_balance_cache = {"ibkr": _load_initial_balance(), "tt": _load_initial_tt_balance(), "updated": 0}
 
 def _refresh_balance_background():
     import threading, time

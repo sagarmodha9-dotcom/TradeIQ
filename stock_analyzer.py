@@ -178,6 +178,8 @@ class StockAnalyzer:
         self.client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
 
     def analyze(self, symbol, bars):
+        if not bars or len(bars) < 10:
+            return None
         if len(bars) < 30: return None
         try:
             indicators = compute_indicators(bars)

@@ -150,9 +150,22 @@ class TastytradeClient:
         try:
             action = "Buy to Open" if side.lower() == "buy" else "Sell to Close"
             tif = "Day"
+            # Tastytrade requires limit orders for options
+            # Get current mid price for limit order
+            limit_price = None
+            try:
+                pos_data = self._request("GET", f"/option-chains/{contract_symbol.strip()}")
+                if pos_data and "data" in pos_data:
+                    bid = float(pos_data["data"].get("bid", 0) or 0)
+                    ask = float(pos_data["data"].get("ask", 0) or 0)
+                    if bid > 0 and ask > 0:
+                        limit_price = round((bid + ask) / 2, 2)
+            except:
+                pass
             order = {
                 "time-in-force": tif,
-                "order-type": "Market",
+                "order-type": "Limit" if limit_price else "Market",
+                "price": str(limit_price) if limit_price else None,
                 "legs": [{
                     "instrument-type": "Equity Option",
                     "symbol": contract_symbol,
@@ -160,6 +173,8 @@ class TastytradeClient:
                     "action": action,
                 }]
             }
+            if not limit_price:
+                order.pop("price", None)
             data = self._request(
                 "POST",
                 f"/accounts/{self.account_number}/orders",

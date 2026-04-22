@@ -110,19 +110,18 @@ def _refresh_live_background():
                                     float(p.get("quantity", 1)) * 100
                                     for p in positions
                                 )
-                                # Get actual cash balance
+                                # Use long-derivative-value for exact options market value
                                 bal_data = tt._request("GET", f"/accounts/{tt.account_number}/balances")
-                                tt_cash = float(bal_data.get("data", {}).get("cash-balance", 97.88) or 97.88)
-                                _live_cache["tt_options_pnl"] = round(live_bal - total_cost - tt_cash, 2)
-                                _live_cache["tt_cash"] = tt_cash
+                                bal = bal_data.get("data", {})
+                                long_deriv = float(bal.get("long-derivative-value", 0) or 0)
+                                if long_deriv > 0:
+                                    _live_cache["tt_options_pnl"] = round(long_deriv - total_cost, 2)
+                                else:
+                                    tt_cash = float(bal.get("cash-balance", 97.88) or 97.88)
+                                    _live_cache["tt_options_pnl"] = round(live_bal - total_cost - tt_cash, 2)
+                                _live_cache["tt_cash"] = float(bal.get("cash-balance", 97.88) or 97.88)
                             except:
-                                # Fallback: Net Liq - Cost - known cash
                                 try:
-                                    total_cost = sum(
-                                        float(p.get("average-open-price", 0)) *
-                                        float(p.get("quantity", 1)) * 100
-                                        for p in positions
-                                    )
                                     _live_cache["tt_options_pnl"] = round(live_bal - total_cost - _live_cache.get("tt_cash", 97.88), 2)
                                 except: pass
                     except: pass

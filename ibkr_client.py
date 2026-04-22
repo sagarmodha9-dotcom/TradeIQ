@@ -143,7 +143,15 @@ class IBKRClient:
                             break
                 except:
                     pass
-            order = MarketOrder(action, qty)
+            from ib_insync import Order
+            order = Order()
+            order.action = action
+            order.totalQuantity = qty
+            order.orderType = 'MKT'
+            order.cashQty = None
+            # Enable fractional shares
+            if qty < 1:
+                order.totalQuantity = qty
             trade = self.ib.placeOrder(contract, order)
             self.ib.sleep(2)
             log.info(f"IBKR order: {action} {qty} {symbol} — {trade.orderStatus.status}")

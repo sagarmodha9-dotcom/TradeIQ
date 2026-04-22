@@ -188,6 +188,10 @@ class StockAnalyzer:
             return None
         try:
           indicators = {k: (v if v is not None else 0) if not isinstance(v, dict) else {dk: (dv if dv is not None else 0) for dk, dv in v.items()} for k, v in indicators.items()}
+          # Extra safety — convert any remaining None to safe defaults
+          for key in list(indicators.keys()):
+              if indicators[key] is None:
+                  indicators[key] = 0
         except: pass
         user_msg = (
             f"Analyze stock {symbol} for precise entry timing.\n"

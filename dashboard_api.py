@@ -32,34 +32,69 @@ def _load_initial_tt_balance():
 
 _balance_cache = {"ibkr": _load_initial_balance(), "tt": _load_initial_tt_balance(), "updated": 0}
 
-def _refresh_balance_background():
+# Live price cache — updated every 15 seconds
+_live_cache = {"positions": [], "ibkr_pnl": 0.0, "tt_balance": 0.0, "updated": 0}
+
+def _refresh_live_background():
     import threading, time
     def _fetch():
         while True:
             try:
-                import config
+                import config, json
                 if config.IS_LIVE:
-                    from ibkr_client import IBKRClient
-                    ibkr = IBKRClient()
-                    if ibkr.ib.isConnected():
-                        val = ibkr.get_portfolio_value()
-                        if val > 0:
-                            _balance_cache["ibkr"] = val
-                        ibkr.disconnect()
-                    from tastytrade_client import TastytradeClient
-                    tt = TastytradeClient()
-                    if tt.session_token:
-                        live_bal = tt.get_account_balance()
-                        if live_bal > 0:
-                            _balance_cache["tt"] = live_bal
-                        else:
-                            _balance_cache["tt"] = tt.get_balance()
+                    # Get live IBKR positions with real P&L
+                    from ib_insync import IB
+                    ib = IB()
+                    try:
+                        ib.connect("127.0.0.1", config.IBKR_PORT, clientId=77, timeout=8)
+                        if ib.isConnected():
+                            # Get live portfolio with real P&L
+                            portfolio = ib.portfolio()
+                            live_positions = {}
+                            total_ibkr_value = 0
+                            for item in portfolio:
+                                sym = item.contract.symbol
+                                live_positions[sym] = {
+                                    "pnl": round(item.unrealizedPNL, 2),
+                                    "current_price": round(item.marketPrice, 2),
+                                    "market_value": round(item.marketValue, 2),
+                                }
+                                total_ibkr_value += item.marketValue
+                            _live_cache["ibkr_positions"] = live_positions
+                            if total_ibkr_value > 0:
+                                _balance_cache["ibkr"] = round(
+                                    sum(v["market_value"] for v in live_positions.values()) +
+                                    float([v.value for v in ib.accountValues()
+                                           if v.tag == "TotalCashValue" and v.currency == "USD"][0] or 0),
+                                    2)
+                    except Exception as e:
+                        pass
+                    finally:
+                        try: ib.disconnect()
+                        except: pass
+
+                    # Get live Tastytrade balance
+                    try:
+                        from tastytrade_client import TastytradeClient
+                        tt = TastytradeClient()
+                        if tt.session_token:
+                            live_bal = tt.get_account_balance()
+                            if live_bal > 0:
+                                _balance_cache["tt"] = live_bal
+                                _live_cache["tt_balance"] = live_bal
+                    except: pass
+
+                    _live_cache["updated"] = time.time()
                     _balance_cache["updated"] = time.time()
-            except:
+            except Exception as e:
                 pass
-            time.sleep(300)  # refresh every 5 minutes
+            time.sleep(15)  # refresh every 15 seconds
+
     t = threading.Thread(target=_fetch, daemon=True)
     t.start()
+
+def _refresh_balance_background():
+    _refresh_live_background()
 
 _refresh_balance_background()
 
@@ -110,7 +145,7 @@ def get_status():
         "daily_pnl":        round(__import__('trade_history').get_daily_summary().get("total_pnl", 0) + sum(p.get("pnl_usd",0) for p in state.get("positions",[])), 2),
         "win_rate":         state.get("stats", {}).get("win_rate", 0),
         "total_trades":     state.get("stats", {}).get("total_trades", 0),
-        "open_positions":   state.get("positions", []),
+        "open_positions":   [{**p, "pnl_usd": _live_cache.get("ibkr_positions", {}).get(p.get("product_id",""), {}).get("pnl", p.get("pnl_usd",0)), "current_price": _live_cache.get("ibkr_positions", {}).get(p.get("product_id",""), {}).get("current_price", p.get("entry_price",0))} if p.get("market")=="stocks" else p for p in state.get("positions", [])],
         "closed_trades":    closed,
         "recent_trades":    closed[:20],
         "last_signals":     state.get("signals", []),
@@ -118,7 +153,7 @@ def get_status():
         "options_portfolio": _balance_cache["tt"],
         "stock_portfolio":  _balance_cache["ibkr"],
         "options_pnl":       round(sum(p.get("pnl_usd",0) for p in state.get("positions",[]) if p.get("market")=="options"), 2),
-        "stock_pnl":        sum(p.get("pnl_usd",0) for p in state.get("positions",[]) if p.get("market")=="stocks"),
+        "stock_pnl":        round(sum(_live_cache.get("ibkr_positions", {}).get(p.get("product_id",""), {}).get("pnl", p.get("pnl_usd",0)) for p in state.get("positions",[]) if p.get("market")=="stocks"), 2),
         "options_open":      state.get("options_open", 0),
         "stock_open":       state.get("stock_open", 0),
         "crypto_win_rate":  state.get("crypto_win_rate", 0),

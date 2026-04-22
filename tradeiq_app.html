@@ -946,7 +946,7 @@ function renderAll(d){
   // Options portfolio
   const optPos=(d.open_positions||[]).filter(p=>p.market==='options');
   const optCost=optPos.reduce((a,p)=>a+(p.usd_value||0),0);
-  const optPnl=d.options_pnl||optPos.reduce((a,p)=>a+(p.pnl_usd||0),0);
+  const optPnl=d.options_pnl!==undefined?d.options_pnl:optPos.reduce((a,p)=>a+(p.pnl_usd||0),0);
   // options cost shown in positions, not balance panel
   const hopEl=document.getElementById('hopnl');if(hopEl){hopEl.textContent='P&L: '+(optPnl>=0?'+$':'-$')+Math.abs(optPnl).toFixed(2);hopEl.className='hsc-pnl '+(optPnl>=0?'up':'dn');}
   if(tV!=='pnl')updTChart();

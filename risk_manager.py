@@ -70,7 +70,16 @@ def is_killed():
 def get_daily_pnl():
     try:
         from trade_history import get_daily_summary
-        return get_daily_summary().get("total_pnl", 0.0)
+        closed_pnl = get_daily_summary().get("total_pnl", 0.0)
+        # Add open unrealized P&L
+        try:
+            import json
+            with open("bot_state.json") as f:
+                state = json.load(f)
+            open_pnl = sum(p.get("pnl_usd", 0) for p in state.get("positions", []))
+        except:
+            open_pnl = 0.0
+        return round(closed_pnl + open_pnl, 2)
     except Exception as e:
         log.error(f"get_daily_pnl error: {e}")
         return 0.0

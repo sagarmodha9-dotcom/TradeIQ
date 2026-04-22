@@ -48,27 +48,32 @@ def _refresh_live_background():
                     try:
                         ib.connect("127.0.0.1", config.IBKR_PORT, clientId=77, timeout=8)
                         if ib.isConnected():
-                            # Get live portfolio with real P&L
                             portfolio = ib.portfolio()
                             live_positions = {}
-                            total_ibkr_value = 0
+                            total_market_value = 0
                             for item in portfolio:
                                 sym = item.contract.symbol
+                                # Use marketPrice if valid, otherwise use last known price
+                                price = item.marketPrice if item.marketPrice and item.marketPrice > 1 else item.averageCost
+                                pnl = round(item.unrealizedPNL, 2)
+                                mval = round(item.marketValue, 2) if item.marketValue and item.marketValue > 0 else round(item.averageCost * item.position, 2)
                                 live_positions[sym] = {
-                                    "pnl": round(item.unrealizedPNL, 2),
-                                    "current_price": round(item.marketPrice, 2),
-                                    "market_value": round(item.marketValue, 2),
+                                    "pnl": pnl,
+                                    "current_price": round(price, 2),
+                                    "market_value": mval,
                                 }
-                                total_ibkr_value += item.marketValue
+                                total_market_value += mval
                             _live_cache["ibkr_positions"] = live_positions
-                            if total_ibkr_value > 0:
-                                _balance_cache["ibkr"] = round(
-                                    sum(v["market_value"] for v in live_positions.values()) +
-                                    float([v.value for v in ib.accountValues()
-                                           if v.tag == "TotalCashValue" and v.currency == "USD"][0] or 0),
-                                    2)
+                            # Get cash balance
+                            try:
+                                cash = float([v.value for v in ib.accountValues()
+                                              if v.tag == "TotalCashValue" and v.currency == "USD"][0])
+                                _balance_cache["ibkr"] = round(total_market_value + cash, 2)
+                            except:
+                                if total_market_value > 0:
+                                    _balance_cache["ibkr"] = total_market_value
                     except Exception as e:
-                        pass
+                        log.error(f"Live IBKR fetch error: {e}")
                     finally:
                         try: ib.disconnect()
                         except: pass

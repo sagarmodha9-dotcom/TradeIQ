@@ -72,15 +72,37 @@ def _refresh_live_background():
                     except Exception as e:
                         log.error(f"Live IBKR fetch error: {e}")
 
-                    # Get live Tastytrade balance
+                    # Get live Tastytrade balance + option prices
                     try:
                         from tastytrade_client import TastytradeClient
                         tt = TastytradeClient()
                         if tt.session_token:
+                            # Live balance
                             live_bal = tt.get_account_balance()
                             if live_bal > 0:
                                 _balance_cache["tt"] = live_bal
                                 _live_cache["tt_balance"] = live_bal
+                            # Live option prices
+                            positions = tt.get_positions()
+                            live_options = {}
+                            for p in positions:
+                                sym = p.get("symbol", "")
+                                avg_price = float(p.get("average-open-price", 0) or 0)
+                                qty = float(p.get("quantity", 1) or 1)
+                                cost = avg_price * qty * 100
+                                try:
+                                    live_price = tt.get_option_market_price(sym)
+                                    if live_price and live_price > 0:
+                                        current_val = live_price * qty * 100
+                                        pnl = round(current_val - cost, 2)
+                                        live_options[sym.strip()] = {
+                                            "pnl": pnl,
+                                            "current_price": round(live_price, 4),
+                                            "market_value": round(current_val, 2),
+                                        }
+                                except: pass
+                            if live_options:
+                                _live_cache["tt_positions"] = live_options
                     except: pass
 
                     _live_cache["updated"] = time.time()
@@ -144,14 +166,17 @@ def get_status():
         "daily_pnl":        round(__import__('trade_history').get_daily_summary().get("total_pnl", 0) + sum(p.get("pnl_usd",0) for p in state.get("positions",[])), 2),
         "win_rate":         state.get("stats", {}).get("win_rate", 0),
         "total_trades":     state.get("stats", {}).get("total_trades", 0),
-        "open_positions":   [{**p, "pnl_usd": _live_cache.get("ibkr_positions", {}).get(p.get("product_id",""), {}).get("pnl", p.get("pnl_usd",0)), "current_price": _live_cache.get("ibkr_positions", {}).get(p.get("product_id",""), {}).get("current_price", p.get("entry_price",0))} if p.get("market")=="stocks" else p for p in state.get("positions", [])],
+        "open_positions":   [{**p, 
+            "pnl_usd": _live_cache.get("ibkr_positions", {}).get(p.get("product_id",""), {}).get("pnl", p.get("pnl_usd",0)) if p.get("market")=="stocks" else _live_cache.get("tt_positions", {}).get(p.get("product_id","").strip(), {}).get("pnl", p.get("pnl_usd",0)),
+            "current_price": _live_cache.get("ibkr_positions", {}).get(p.get("product_id",""), {}).get("current_price", p.get("entry_price",0)) if p.get("market")=="stocks" else _live_cache.get("tt_positions", {}).get(p.get("product_id","").strip(), {}).get("current_price", p.get("entry_price",0))
+        } for p in state.get("positions", [])],
         "closed_trades":    closed,
         "recent_trades":    closed[:20],
         "last_signals":     state.get("signals", []),
         "scanned_at":       state.get("scanned_at"),
         "options_portfolio": _balance_cache["tt"],
         "stock_portfolio":  _balance_cache["ibkr"],
-        "options_pnl":       round(sum(p.get("pnl_usd",0) for p in state.get("positions",[]) if p.get("market")=="options"), 2),
+        "options_pnl":       round(sum(_live_cache.get("tt_positions", {}).get(p.get("product_id","").strip(), {}).get("pnl", p.get("pnl_usd",0)) for p in state.get("positions",[]) if p.get("market")=="options"), 2),
         "stock_pnl":        round(sum(_live_cache.get("ibkr_positions", {}).get(p.get("product_id",""), {}).get("pnl", p.get("pnl_usd",0)) for p in state.get("positions",[]) if p.get("market")=="stocks"), 2),
         "options_open":      state.get("options_open", 0),
         "stock_open":       state.get("stock_open", 0),

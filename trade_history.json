@@ -14,5 +14,26 @@
     "confidence": 0.72,
     "opened_at": "2026-04-20T12:00:00",
     "closed_at": "2026-04-21T10:02:23"
+  },
+  {
+    "product_id": "MSFT  260427C00435000",
+    "underlying": "MSFT",
+    "side": "BUY",
+    "entry_price": 1.8,
+    "quantity": 1,
+    "usd_value": 180.0,
+    "stop_loss": 0,
+    "take_profit": 0,
+    "confidence": 0.72,
+    "reasoning": "MSFT earnings Apr 29 call",
+    "opened_at": "2026-04-20T12:00:00",
+    "market": "options",
+    "pnl_usd": 115.00000476837158,
+    "current_price": 2.950000047683716,
+    "status": "closed_tp",
+    "exit_price": 2.950000047683716,
+    "pnl_pct": 63.88889153798421,
+    "date": "2026-04-22",
+    "saved_at": "2026-04-22T14:14:31.436331+00:00"
   }
 ]

@@ -18,6 +18,31 @@ class OptionsClient:
             log.warning(f"Tastytrade not available: {e}")
             self.tt = None
 
+    def get_option_delta(self, symbol, expiry, strike, option_type):
+        """Estimate option delta based on moneyness."""
+        try:
+            current = self.ibkr.get_latest_price(symbol) if self.ibkr else 0
+            if current <= 0:
+                return 0.35
+            K = float(strike)
+            moneyness = current / K
+            if option_type == "call":
+                if moneyness >= 1.05: return 0.70
+                elif moneyness >= 1.02: return 0.55
+                elif moneyness >= 0.99: return 0.45
+                elif moneyness >= 0.96: return 0.32
+                elif moneyness >= 0.93: return 0.18
+                else: return 0.08
+            else:
+                if moneyness <= 0.95: return 0.70
+                elif moneyness <= 0.98: return 0.55
+                elif moneyness <= 1.01: return 0.45
+                elif moneyness <= 1.04: return 0.32
+                elif moneyness <= 1.07: return 0.18
+                else: return 0.08
+        except:
+            return 0.35
+
     def find_best_option(self, symbol, direction, budget=250):
         """Find best option contract via IBKR — 30-45 day expiry, 1-6% OTM."""
         if not self.ibkr:

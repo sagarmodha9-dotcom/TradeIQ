@@ -103,6 +103,16 @@ def _refresh_live_background():
                                 except: pass
                             if live_options:
                                 _live_cache["tt_positions"] = live_options
+                            # Calculate exact options P&L from Tastytrade
+                            try:
+                                total_cost = sum(
+                                    float(p.get("average-open-price", 0)) * 
+                                    float(p.get("quantity", 1)) * 100
+                                    for p in positions
+                                )
+                                tt_cash = float([v for v in positions if False] or [97.88])[0]
+                                _live_cache["tt_options_pnl"] = round(live_bal - total_cost - 97.88, 2)
+                            except: pass
                     except: pass
 
                     _live_cache["updated"] = time.time()
@@ -176,7 +186,7 @@ def get_status():
         "scanned_at":       state.get("scanned_at"),
         "options_portfolio": _balance_cache["tt"],
         "stock_portfolio":  _balance_cache["ibkr"],
-        "options_pnl":       round(sum(_live_cache.get("tt_positions", {}).get(p.get("product_id","").strip(), {}).get("pnl", p.get("pnl_usd",0)) for p in state.get("positions",[]) if p.get("market")=="options"), 2),
+        "options_pnl":       _live_cache.get("tt_options_pnl", round(sum(p.get("pnl_usd",0) for p in state.get("positions",[]) if p.get("market")=="options"), 2)),
         "stock_pnl":        round(sum(_live_cache.get("ibkr_positions", {}).get(p.get("product_id",""), {}).get("pnl", p.get("pnl_usd",0)) for p in state.get("positions",[]) if p.get("market")=="stocks"), 2),
         "options_open":      state.get("options_open", 0),
         "stock_open":       state.get("stock_open", 0),

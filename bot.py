@@ -863,6 +863,46 @@ def main():
 
     pt             = PortfolioTracker()
     sync_tastytrade_positions(options_client, pt)
+
+    # Sync IBKR positions on startup to prevent duplicates
+    def sync_ibkr_positions():
+        try:
+            with open("bot_state.json") as f:
+                state = json.load(f)
+            ibkr_positions = ibkr.get_positions()
+            ibkr_symbols = {p["symbol"] for p in ibkr_positions}
+            # Remove any stock positions from bot_state not in IBKR
+            before = len([p for p in state["positions"] if p.get("market") == "stocks"])
+            state["positions"] = [
+                p for p in state["positions"]
+                if p.get("market") != "stocks" or p.get("product_id") in ibkr_symbols
+            ]
+            # Add any IBKR positions missing from bot_state
+            bot_symbols = {p["product_id"] for p in state["positions"] if p.get("market") == "stocks"}
+            for p in ibkr_positions:
+                if p["symbol"] not in bot_symbols:
+                    state["positions"].append({
+                        "product_id": p["symbol"],
+                        "side": "BUY",
+                        "entry_price": p["avg_entry_price"],
+                        "quantity": p["qty"],
+                        "usd_value": round(p["avg_entry_price"] * p["qty"], 2),
+                        "stop_loss": round(p["avg_entry_price"] * 0.97, 2),
+                        "take_profit": round(p["avg_entry_price"] * 1.06, 2),
+                        "confidence": 0.72,
+                        "reasoning": "Synced from IBKR on startup",
+                        "opened_at": __import__("datetime").datetime.now().isoformat(),
+                        "market": "stocks",
+                        "pnl_usd": 0.0,
+                    })
+            after = len([p for p in state["positions"] if p.get("market") == "stocks"])
+            with open("bot_state.json", "w") as f:
+                json.dump(state, f, indent=2)
+            log.info(f"✅ IBKR sync: {before} → {after} stock positions ({len(ibkr_symbols)} in IBKR)")
+        except Exception as e:
+            log.error(f"IBKR startup sync error: {e}")
+
+    sync_ibkr_positions()
     analyzer       = Analyzer()
     stock_analyzer = StockAnalyzer()
     tm             = TradeManager(cb, portfolio_tracker=pt)

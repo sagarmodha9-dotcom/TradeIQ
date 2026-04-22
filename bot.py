@@ -399,6 +399,23 @@ def monitor_option_positions(options_client):
         if not opts:
             return
         updated = False
+        # Sync exact P&L from Tastytrade balances
+        try:
+            if options_client and options_client.tt:
+                bal_data = options_client.tt._request("GET", f"/accounts/{options_client.tt.account_number}/balances")
+                bal = bal_data.get("data", {})
+                long_deriv = float(bal.get("long-derivative-value", 0) or 0)
+                total_cost = sum(float(p.get("entry_price", 0)) * 100 for p in opts)
+                if long_deriv > 0 and total_cost > 0:
+                    total_pnl_from_tt = round(long_deriv - total_cost, 2)
+                    # Distribute P&L proportionally across positions
+                    for p in state["positions"]:
+                        if p.get("market") == "options":
+                            weight = (float(p.get("entry_price", 0)) * 100) / total_cost if total_cost else 0
+                            p["pnl_usd"] = round(total_pnl_from_tt * weight, 2)
+                    updated = True
+        except Exception as _e:
+            pass
         for p in state["positions"]:
             if p.get("market") != "options":
                 continue

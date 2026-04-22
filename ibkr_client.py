@@ -129,29 +129,20 @@ class IBKRClient:
             if qty is None and notional:
                 price = self.get_latest_price(symbol)
                 if price > 0:
-                    qty = notional / price  # Use fractional shares
-                    qty = round(qty, 4)
+                    qty = max(1, int(notional / price))
                 else:
                     qty = 1
-            # For SELL orders use actual position quantity to handle fractional shares
-            if action == "SELL" and qty is not None:
+            # For SELL orders use actual position quantity
+            if action == "SELL":
                 try:
                     for p in self.ib.positions():
                         if p.contract.symbol == symbol and p.position > 0:
-                            qty = abs(p.position)
-                            log.info(f"SELL {symbol}: using actual qty={qty:.4f}")
+                            qty = abs(int(p.position))
+                            log.info(f"SELL {symbol}: using actual qty={qty}")
                             break
                 except:
                     pass
-            from ib_insync import Order
-            order = Order()
-            order.action = action
-            order.totalQuantity = qty
-            order.orderType = 'MKT'
-            order.cashQty = None
-            # Enable fractional shares
-            if qty < 1:
-                order.totalQuantity = qty
+            order = MarketOrder(action, qty)
             trade = self.ib.placeOrder(contract, order)
             self.ib.sleep(2)
             log.info(f"IBKR order: {action} {qty} {symbol} — {trade.orderStatus.status}")

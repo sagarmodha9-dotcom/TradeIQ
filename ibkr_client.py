@@ -128,7 +128,11 @@ class IBKRClient:
             action = "BUY" if side.upper() == "BUY" else "SELL"
             if qty is None and notional:
                 price = self.get_latest_price(symbol)
-                qty = max(1, int(notional / price)) if price > 0 else 1
+                if price > 0:
+                    qty = notional / price  # Use fractional shares
+                    qty = round(qty, 4)
+                else:
+                    qty = 1
             # For SELL orders use actual position quantity to handle fractional shares
             if action == "SELL" and qty is not None:
                 try:

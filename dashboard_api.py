@@ -107,7 +107,7 @@ def get_status():
         "mode":             "live" if config.IS_LIVE else "paper",
         "portfolio_usd":    _balance_cache["ibkr"] + _balance_cache["tt"],
         "total_pnl":        state.get("total_pnl", 0),
-        "daily_pnl":        sum(p.get("pnl_usd",0) for p in state.get("positions",[]) if p.get("market")=="options") + __import__('trade_history').get_daily_summary().get("total_pnl", 0),
+        "daily_pnl":        sum(p.get("pnl_usd",0) for p in state.get("positions",[]) if p.get("market")=="options") + sum(p.get("pnl_usd",0) for p in state.get("positions",[]) if p.get("market")=="stocks") + __import__('trade_history').get_daily_summary().get("total_pnl", 0),
         "win_rate":         state.get("stats", {}).get("win_rate", 0),
         "total_trades":     state.get("stats", {}).get("total_trades", 0),
         "open_positions":   state.get("positions", []),

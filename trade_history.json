@@ -11,7 +11,8 @@
     "pnl_pct": -28.7,
     "status": "closed_sl",
     "opened_at": "2026-04-20T12:00:00",
-    "closed_at": "2026-04-21T10:02:23"
+    "closed_at": "2026-04-21T10:02:23",
+    "date": "2026-04-21"
   },
   {
     "product_id": "MSFT  260427C00435000",
@@ -25,7 +26,8 @@
     "pnl_pct": 80.6,
     "status": "closed_tp",
     "opened_at": "2026-04-20T12:00:00",
-    "closed_at": "2026-04-22T10:25:45"
+    "closed_at": "2026-04-22T10:25:45",
+    "date": "2026-04-22"
   },
   {
     "product_id": "AAPL  260429C00272500",
@@ -39,6 +41,7 @@
     "pnl_pct": 100.0,
     "status": "closed_tp",
     "opened_at": "2026-04-22T10:15:00",
-    "closed_at": "2026-04-22T12:15:00"
+    "closed_at": "2026-04-22T12:15:00",
+    "date": "2026-04-22"
   }
 ]

@@ -1360,7 +1360,7 @@ goPage = function(p) {
     mkHtChart(); loadHistory();
     if(lastD) {
       const trades = lastD.closed_trades||[];
-      const sPnl = trades.filter(t=>t.market==='stocks').reduce((a,t)=>a+(t.pnl_usd||0),0);
+      const sPnl = trades.filter(t=>t.market==='stocks').reduce((a,t)=>a+(t.pnl_usd||0),0) + (lastD.stock_pnl||0);
       const cPnl = trades.filter(t=>t.market==='options').reduce((a,t)=>a+(t.pnl_usd||0),0);
       const oPnl = trades.filter(t=>t.market==='options').reduce((a,t)=>a+(t.pnl_usd||0),0);
       const openOptsPnl=(lastD.open_positions||[]).filter(p=>p.market==='options').reduce((a,p)=>a+(p.pnl_usd||0),0);

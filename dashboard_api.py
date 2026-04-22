@@ -103,16 +103,28 @@ def _refresh_live_background():
                                 except: pass
                             if live_options:
                                 _live_cache["tt_positions"] = live_options
-                            # Calculate exact options P&L from Tastytrade
+                            # Calculate exact options P&L: Net Liq - Cost - Cash
                             try:
                                 total_cost = sum(
-                                    float(p.get("average-open-price", 0)) * 
+                                    float(p.get("average-open-price", 0)) *
                                     float(p.get("quantity", 1)) * 100
                                     for p in positions
                                 )
-                                tt_cash = float([v for v in positions if False] or [97.88])[0]
-                                _live_cache["tt_options_pnl"] = round(live_bal - total_cost - 97.88, 2)
-                            except: pass
+                                # Get actual cash balance
+                                bal_data = tt._request("GET", f"/accounts/{tt.account_number}/balances")
+                                tt_cash = float(bal_data.get("data", {}).get("cash-balance", 97.88) or 97.88)
+                                _live_cache["tt_options_pnl"] = round(live_bal - total_cost - tt_cash, 2)
+                                _live_cache["tt_cash"] = tt_cash
+                            except:
+                                # Fallback: Net Liq - Cost - known cash
+                                try:
+                                    total_cost = sum(
+                                        float(p.get("average-open-price", 0)) *
+                                        float(p.get("quantity", 1)) * 100
+                                        for p in positions
+                                    )
+                                    _live_cache["tt_options_pnl"] = round(live_bal - total_cost - _live_cache.get("tt_cash", 97.88), 2)
+                                except: pass
                     except: pass
 
                     _live_cache["updated"] = time.time()

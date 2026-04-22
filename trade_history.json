@@ -647,5 +647,41 @@
     "closed_at": "2026-04-22T15:10:09.722264",
     "date": "2026-04-22",
     "saved_at": "2026-04-22T19:10:09.722774+00:00"
+  },
+  {
+    "product_id": "AMD",
+    "side": "BUY",
+    "entry_price": 277.29,
+    "exit_price": 301.05,
+    "pnl_usd": 23.76,
+    "pnl_pct": 8.57,
+    "status": "closed_tp",
+    "reasoning": "AMD signal",
+    "key_signals": [],
+    "indicators": {},
+    "market": "stocks",
+    "confidence": 0.72,
+    "opened_at": "2026-04-21T21:12:12.208196",
+    "closed_at": "2026-04-22T15:18:18.869496",
+    "date": "2026-04-22",
+    "saved_at": "2026-04-22T19:18:18.869824+00:00"
+  },
+  {
+    "product_id": "AMD",
+    "side": "BUY",
+    "entry_price": 277.29,
+    "exit_price": 301.37,
+    "pnl_usd": 24.08,
+    "pnl_pct": 8.68,
+    "status": "closed_tp",
+    "reasoning": "AMD signal",
+    "key_signals": [],
+    "indicators": {},
+    "market": "stocks",
+    "confidence": 0.72,
+    "opened_at": "2026-04-21T21:12:12.208196",
+    "closed_at": "2026-04-22T15:20:51.023877",
+    "date": "2026-04-22",
+    "saved_at": "2026-04-22T19:20:51.024293+00:00"
   }
 ]

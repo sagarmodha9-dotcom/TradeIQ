@@ -129,6 +129,16 @@ class IBKRClient:
             if qty is None and notional:
                 price = self.get_latest_price(symbol)
                 qty = max(1, int(notional / price)) if price > 0 else 1
+            # For SELL orders use actual position quantity to handle fractional shares
+            if action == "SELL" and qty is not None:
+                try:
+                    for p in self.ib.positions():
+                        if p.contract.symbol == symbol and p.position > 0:
+                            qty = abs(p.position)
+                            log.info(f"SELL {symbol}: using actual qty={qty:.4f}")
+                            break
+                except:
+                    pass
             order = MarketOrder(action, qty)
             trade = self.ib.placeOrder(contract, order)
             self.ib.sleep(2)

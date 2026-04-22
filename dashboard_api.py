@@ -42,41 +42,30 @@ def _refresh_live_background():
             try:
                 import config, json
                 if config.IS_LIVE:
-                    # Get live IBKR positions with real P&L
-                    from ib_insync import IB
-                    ib = IB()
+                    # Get live IBKR positions using IBKRClient
                     try:
-                        ib.connect("127.0.0.1", config.IBKR_PORT, clientId=77, timeout=8)
-                        if ib.isConnected():
-                            portfolio = ib.portfolio()
-                            live_positions = {}
-                            total_market_value = 0
-                            for item in portfolio:
-                                sym = item.contract.symbol
-                                # Use marketPrice if valid, otherwise use last known price
-                                price = item.marketPrice if item.marketPrice and item.marketPrice > 1 else item.averageCost
-                                pnl = round(item.unrealizedPNL, 2)
-                                mval = round(item.marketValue, 2) if item.marketValue and item.marketValue > 0 else round(item.averageCost * item.position, 2)
-                                live_positions[sym] = {
-                                    "pnl": pnl,
-                                    "current_price": round(price, 2),
-                                    "market_value": mval,
-                                }
-                                total_market_value += mval
-                            _live_cache["ibkr_positions"] = live_positions
-                            # Get cash balance
+                        from ibkr_client import IBKRClient
+                        _ibkr = IBKRClient(client_id=77)
+                        live_positions = {}
+                        total_market_value = 0
+                        for p in _ibkr.get_positions():
+                            sym = p["symbol"]
+                            entry = p.get("avg_entry_price", 0)
+                            qty = p.get("qty", 1)
                             try:
-                                cash = float([v.value for v in ib.accountValues()
-                                              if v.tag == "TotalCashValue" and v.currency == "USD"][0])
-                                _balance_cache["ibkr"] = round(total_market_value + cash, 2)
+                                bars = _ibkr.get_bars(sym, timeframe="1Hour", limit=1)
+                                price = float(bars[-1].get("c") or bars[-1].get("close") or entry) if bars else entry
                             except:
-                                if total_market_value > 0:
-                                    _balance_cache["ibkr"] = total_market_value
+                                price = entry
+                            pnl = round((price - entry) * qty, 2)
+                            mval = round(price * qty, 2)
+                            live_positions[sym] = {"pnl": pnl, "current_price": round(price, 2), "market_value": mval}
+                            total_market_value += mval
+                        if live_positions:
+                            _live_cache["ibkr_positions"] = live_positions
+                        _ibkr.disconnect()
                     except Exception as e:
                         log.error(f"Live IBKR fetch error: {e}")
-                    finally:
-                        try: ib.disconnect()
-                        except: pass
 
                     # Get live Tastytrade balance
                     try:

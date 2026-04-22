@@ -162,14 +162,20 @@ def get_position_size(symbol, base_size, ibkr):
         high_vol = ["COIN", "MSTR", "PLTR", "HOOD", "SOFI", "TSLA", "NVDA", "AMD"]
         med_vol  = ["GOOGL", "AMZN", "META", "NFLX", "UBER", "BABA", "INTC", "DIS"]
         low_vol  = ["AAPL", "MSFT", "SPY", "QQQ"]
+        # Ensure minimum size covers 1 whole share
+        price = ibkr.get_latest_price(symbol) if ibkr else 0
+        min_size = price * 1.05 if price > 0 else base_size
         if symbol in high_vol:
-            size = base_size * 0.5   # 50% — $125 instead of $250
-            log.info(f"{symbol}: HIGH volatility → reduced to ${size:.0f}")
+            size = max(min_size, base_size * 0.5)
+            log.info(f"{symbol}: HIGH volatility → ${size:.0f}")
         elif symbol in med_vol:
-            size = base_size * 0.75  # 75% — $187 instead of $250
-            log.info(f"{symbol}: MED volatility → reduced to ${size:.0f}")
+            size = max(min_size, base_size * 0.75)
+            log.info(f"{symbol}: MED volatility → ${size:.0f}")
         else:
-            size = base_size          # 100% — $250 full size
+            size = max(min_size, base_size)
+        # Cap at 20% of account to avoid oversizing
+        max_size = 2039 * 0.20
+        size = min(size, max_size)
         return size
     except Exception:
         return base_size

@@ -293,7 +293,7 @@ def monitor_stock_positions(ibkr, pt):
                         sl = breakeven_sl
                         log.info(f"🔒 BREAKEVEN SL {symbol} → ${breakeven_sl:.2f} (price=${current:.2f} +{pnl_pct:.1f}%)")
                 pnl = (current - entry) * float(pos["quantity"])
-                pnl_pct = (current - entry) / entry * 100
+                pnl_pct = (current - entry) / entry * 100 if entry > 0 else 0
                 if current <= sl:
                     log.info(f"❌ STOCK SL HIT {symbol} @ ${current:.2f} PnL: ${pnl:.2f}")
                     _trade_cooldown[symbol] = datetime.now()

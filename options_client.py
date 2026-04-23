@@ -47,7 +47,7 @@ class OptionsClient:
     def find_best_option(self, symbol, direction, budget=250):
         """Find best option contract via IBKR — 30-45 day expiry, 1-6% OTM."""
         if not self.ibkr:
-            log.warning("OptionsClient: no IBKR client available")
+            log.info("OptionsClient: using Alpaca for price lookups")
             return None
         try:
             option_type = direction

@@ -80,14 +80,33 @@ class AlpacaClient:
                 "close":  float(b["c"]),
                 "volume": float(b["v"]),
             })
+        # Fallback to sip feed if iex returns nothing
+        if not bars:
+            endpoint_sip = endpoint.replace("feed=iex", "feed=sip")
+            data = self._request("GET", self.data_url, endpoint_sip)
+            for b in data.get("bars", []):
+                bars.append({
+                    "time":   b["t"],
+                    "open":   float(b["o"]),
+                    "high":   float(b["h"]),
+                    "low":    float(b["l"]),
+                    "close":  float(b["c"]),
+                    "volume": float(b["v"]),
+                })
         return bars
 
     def get_latest_price(self, symbol):
         try:
-            data = self._request(
-                "GET", self.data_url,
-                f"/v2/stocks/{symbol}/quotes/latest?feed=iex"
-            )
+            try:
+                data = self._request(
+                    "GET", self.data_url,
+                    f"/v2/stocks/{symbol}/quotes/latest?feed=iex"
+                )
+            except:
+                data = self._request(
+                    "GET", self.data_url,
+                    f"/v2/stocks/{symbol}/quotes/latest?feed=sip"
+                )
             quote = data.get("quote", {})
             bid = float(quote.get("bp", 0))
             ask = float(quote.get("ap", 0))

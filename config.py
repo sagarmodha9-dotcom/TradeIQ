@@ -65,7 +65,7 @@ def get_account_balance():
     if not IS_LIVE:
         return PAPER_BALANCE
     try:
-        from ib_insync import IB
+        from alpaca_client import AlpacaClient as IB
         ib = IB()
         ib.connect(IBKR_HOST, IBKR_PORT, clientId=99, timeout=3)
         val = float(next((v.value for v in ib.accountValues() if v.tag == "NetLiquidation" and v.currency == "USD"), 0))

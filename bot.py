@@ -23,7 +23,7 @@ from logger import log
 
 # In-memory cooldown
 _trade_cooldown = {}
-from alpaca_client import AlpacaClient as IBKRClient
+from alpaca_client import AlpacaClient
 from analyzer import Analyzer
 from stock_analyzer import StockAnalyzer
 from trade_manager import TradeManager
@@ -874,7 +874,7 @@ def main():
     print_banner(config.IS_LIVE)
     # Live mode confirmed via TRADING_MODE=live in .env
     cb = None  # Crypto disabled
-    ibkr            = IBKRClient()
+    ibkr            = AlpacaClient()
     _ibkr_fail_count = 0
     from options_client import OptionsClient
     from options_analyzer import OptionsAnalyzer

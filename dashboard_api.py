@@ -2,7 +2,7 @@ import json
 import time
 from datetime import datetime, timezone
 
-# Response cache to avoid hammering IBKR
+# Response cache to avoid hammering Alpaca
 _cache = {}
 _cache_ttl = 10  # seconds
 
@@ -146,10 +146,10 @@ from logger import log
 
 config.validate_config()
 try:
-    from ibkr_client import IBKRClient
-    ibkr = IBKRClient(client_id=2)
+    from alpaca_client import AlpacaClient
+    ibkr = AlpacaClient()
 except Exception as e:
-    log.warning(f"IBKR not available for API: {e}")
+    log.warning(f"Alpaca not available for API: {e}")
     ibkr = None
 tm     = TradeManager(None)
 log.info("Dashboard API ready")

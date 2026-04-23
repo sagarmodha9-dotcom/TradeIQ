@@ -592,7 +592,7 @@ def run_scan(cb, ibkr, analyzer, stock_analyzer, tm, pt, options_client=None, op
     tm.monitor_positions()
     monitor_stock_positions(ibkr, pt)
     monitor_option_positions(options_client)
-    run_earnings_options_scan(options_client, ibkr)
+    pass  # earnings scan disabled until Alpaca deposit clears
     stock_signals, stock_pos   = run_stock_scan(ibkr, stock_analyzer, pt)
     options_pos = run_options_scan(options_client, options_analyzer, stock_signals, pt) if options_client else []
     # Crypto disabled - focusing on stocks + options only

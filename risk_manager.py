@@ -133,17 +133,15 @@ def get_vix():
     if _vix_cache["fetched_at"] and (now - _vix_cache["fetched_at"]).total_seconds() < 900:
         return _vix_cache["value"]
     try:
-        # VIX approximation using SPY volatility via Alpaca
+        # Real VIX from CBOE free feed
         try:
-            from alpaca_client import AlpacaClient
-            ac = AlpacaClient()
-            bars = ac.get_bars("SPY", timeframe="1Day", limit=20)
-            if bars and len(bars) >= 5:
-                closes = [b["close"] for b in bars]
-                import statistics
-                daily_returns = [(closes[i]-closes[i-1])/closes[i-1] for i in range(1,len(closes))]
-                vol = statistics.stdev(daily_returns) * (252**0.5) * 100
-                val = round(vol, 2)
+            import requests as _req
+            r = _req.get(
+                "https://cdn.cboe.com/api/global/delayed_quotes/quotes/_VIX.json",
+                timeout=5
+            )
+            val = float(r.json()["data"]["current_price"])
+            if val > 0:
                 _vix_cache["value"] = val
                 _vix_cache["fetched_at"] = now
                 return val

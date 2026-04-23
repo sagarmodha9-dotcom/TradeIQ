@@ -45,13 +45,16 @@ class OptionsClient:
             return 0.35
 
     def find_best_option(self, symbol, direction, budget=250):
-        """Find best option contract via IBKR — 30-45 day expiry, 1-6% OTM."""
-        if not self.ibkr:
-            log.info("OptionsClient: using Alpaca for price lookups")
-            return None
+        """Find best option contract via Tastytrade — 30-45 day expiry, 1-6% OTM."""
         try:
             option_type = direction
-            current_price = self.ibkr.get_latest_price(symbol)
+            # Use Alpaca for price lookup, fallback to ibkr
+            if self.alpaca:
+                current_price = self.alpaca.get_latest_price(symbol)
+            elif self.ibkr:
+                current_price = self.ibkr.get_latest_price(symbol)
+            else:
+                current_price = 0
             if current_price <= 0:
                 log.warning(f"Options {symbol}: could not get current price")
                 return None

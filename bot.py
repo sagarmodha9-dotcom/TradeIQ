@@ -921,7 +921,7 @@ def main():
             after = len([p for p in state["positions"] if p.get("market") == "stocks"])
             with open("bot_state.json", "w") as f:
                 json.dump(state, f, indent=2)
-            log.info(f"✅ IBKR sync: {before} → {after} stock positions ({len(ibkr_symbols)} in IBKR)")
+            log.info(f"✅ Alpaca sync: {before} → {after} stock positions ({len(ibkr_symbols)} in Alpaca)")
         except Exception as e:
             log.error(f"IBKR startup sync error: {e}")
 
@@ -929,7 +929,7 @@ def main():
     analyzer       = Analyzer()
     stock_analyzer = StockAnalyzer()
     tm             = TradeManager(cb, portfolio_tracker=pt)
-    log.info(f"Stocks: {len(config.STOCK_SYMBOLS)} symbols | Mode: {config.TRADING_MODE.upper()} | IBKR port {config.IBKR_PORT}")
+    log.info(f"Stocks: {len(config.STOCK_SYMBOLS)} symbols | Mode: {config.TRADING_MODE.upper()} | Alpaca")
     log.info(f"Portfolio — Stocks:${pt.stock_balance:,.2f} | Total:${pt.stock_balance:,.2f}\n")
     while _running:
         try:

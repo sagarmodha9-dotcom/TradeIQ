@@ -105,7 +105,14 @@ class AlpacaClient:
             bid = float(quote.get("bp", 0))
             ask = float(quote.get("ap", 0))
             mid = (bid + ask) / 2 if bid and ask else 0
-            return mid if mid > 0 else ask if ask > 0 else bid
+            price = mid if mid > 0 else ask if ask > 0 else bid
+            if price > 0:
+                return price
+            # Fallback — get last bar close price
+            bars = self.get_bars(symbol, timeframe="1Hour", limit=1)
+            if bars:
+                return bars[-1]["close"]
+            return 0.0
         except Exception as e:
             log.error(f"Alpaca price error {symbol}: {e}")
             return 0.0

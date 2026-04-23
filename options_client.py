@@ -59,17 +59,34 @@ class OptionsClient:
                 log.warning(f"Options {symbol}: could not get current price")
                 return None
 
-            for days_out in [7, 14, 21, 30]:
-                target = date.today() + timedelta(days=days_out)
-                if target.weekday() == 5: target += timedelta(days=2)
-                if target.weekday() == 6: target += timedelta(days=1)
-                expiry = target.strftime("%Y-%m-%d")
+            # Get real available expiries from Tastytrade
+            available_expiries = []
+            if self.tt:
+                try:
+                    data = self.tt._request("GET", f"/option-chains/{symbol}/nested")
+                    items = data.get("data", {}).get("items", [])
+                    if items:
+                        for exp in items[0].get("expirations", []):
+                            ed = exp.get("expiration-date", "")
+                            if ed:
+                                from datetime import datetime
+                                days = (datetime.strptime(ed, "%Y-%m-%d").date() - date.today()).days
+                                if 5 <= days <= 45:
+                                    available_expiries.append(ed)
+                except: pass
 
-                # Use Tastytrade for chain lookup, fallback to IBKR
+            if not available_expiries:
+                available_expiries = []
+                for days_out in [7, 14, 21, 30]:
+                    target = date.today() + timedelta(days=days_out)
+                    if target.weekday() == 5: target += timedelta(days=2)
+                    if target.weekday() == 6: target += timedelta(days=1)
+                    available_expiries.append(target.strftime("%Y-%m-%d"))
+
+            for expiry in available_expiries:
+                # Use Tastytrade for chain lookup
                 if self.tt:
                     contracts = self.tt.get_option_chain(symbol, expiry, option_type)
-                elif self.ibkr:
-                    contracts = self.ibkr.get_option_chain(symbol, expiry, option_type)
                 else:
                     contracts = []
                 if not contracts:
@@ -85,7 +102,7 @@ class OptionsClient:
                     else:
                         pct_otm = (current_price - strike) / current_price
 
-                    if not (0.005 <= pct_otm <= 0.10):
+                    if not (0.005 <= pct_otm <= 0.08):
                         continue
 
                     # Get live price from Tastytrade or IBKR
@@ -96,7 +113,9 @@ class OptionsClient:
                     else:
                         price = 0.0
                     cost = price * 100
-                    if price < 0.10 or cost > budget:
+                    if price <= 0 or cost <= 0:
+                        continue
+                    if cost > budget:
                         continue
 
                     # Delta filter — target 0.25-0.55 (sweet spot)

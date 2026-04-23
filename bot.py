@@ -540,12 +540,12 @@ def run_options_scan(options_client, options_analyzer, stock_signals, pt):
             if opt_signal["confidence"] < config.MIN_CONFIDENCE:
                 continue
             direction = "call" if "call" in opt_signal["strategy"] else "put"
-            budget = 200 if config.IS_LIVE else 250
+            budget = 1000 if config.IS_LIVE else 250
             # Earnings calendar: use weekly options if earnings within 7 days
             expiry_days, expiry_reason = get_options_expiry_days(symbol)
             if has_earnings_soon(symbol):
                 log.info(f"Options {symbol}: earnings play — using weekly expiry ({expiry_reason})")
-                budget = min(budget, 100)  # smaller budget for earnings plays
+                budget = min(budget, 1000)  # earnings plays budget
             contract = options_client.find_best_option(symbol, direction, budget=budget)
             if not contract:
                 log.info(f"Options {symbol}: No suitable contract found")
@@ -809,7 +809,7 @@ def run_earnings_options_scan(options_client, ibkr):
             log.info(f"🎯 EARNINGS PLAY: {symbol} reports in {dte} days — looking for call...")
 
             # Use 30-day expiry for earnings plays (capture full move)
-            contract = options_client.find_best_option(symbol, "call", budget=200)
+            contract = options_client.find_best_option(symbol, "call", budget=1000)
             if not contract:
                 log.info(f"Earnings play {symbol}: no suitable contract found")
                 continue

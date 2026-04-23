@@ -207,7 +207,7 @@ class StockAnalyzer:
             f"Price vs EMA20: {indicators.get('price_vs_ema20', 0.0):+.2f}% | "
             f"Price vs VWAP: {indicators.get('price_vs_vwap', 0.0):+.2f}%\n"
             f"Volume Ratio: {indicators.get('volume_ratio', 1.0)}x avg | ATR: ${indicators.get('atr', 0.0):.2f}\n"
-            f"Strategy: 5% position, {config.STOCK_SL_PCT*100:.0f}% SL, {config.STOCK_TP_PCT*100:.0f}% TP. "
+            f"Strategy: 5% position, {config.get_sl_pct(symbol)*100:.0f}% SL, {config.get_tp_pct(symbol)*100:.0f}% TP. "
             f"Only BUY if entry timing is confirmed by multiple indicators."
         )
         try:

@@ -84,3 +84,41 @@ def get_daily_loss_limit_usd():
     balance = LIVE_ACCOUNT_BALANCE if IS_LIVE else PAPER_BALANCE
     return abs(balance * DAILY_LOSS_LIMIT_PCT)
 
+# Dynamic TP/SL by symbol volatility tier
+# High vol: TSLA, NVDA, COIN, AMD — wider TP to let winners run
+# Mid vol: META, GOOGL, AMZN, MSFT — standard TP
+# Low vol: SPY, QQQ, JPM, BAC — tighter TP for faster hits
+SYMBOL_TP_PCT = {
+    # High volatility — let run
+    "TSLA": 0.08, "NVDA": 0.07, "COIN": 0.09, "AMD":  0.07,
+    "HOOD": 0.09, "SOFI": 0.08, "PLTR": 0.07, "APP":  0.08,
+    "SNAP": 0.09, "ROKU": 0.09, "SHOP": 0.07, "SQ":   0.07,
+    "BABA": 0.07,
+    # Mid volatility — standard
+    "META": 0.06, "GOOGL": 0.06, "AMZN": 0.06, "MSFT": 0.05,
+    "AAPL": 0.05, "NFLX":  0.06, "UBER": 0.06, "DIS":  0.06,
+    "INTC": 0.06,
+    # Low volatility — tight TP for more hits
+    "SPY":  0.03, "QQQ":  0.03, "JPM":  0.04, "BAC":  0.04,
+}
+
+SYMBOL_SL_PCT = {
+    # High volatility — wider SL to avoid shakeouts
+    "TSLA": 0.04, "NVDA": 0.035, "COIN": 0.045, "AMD":  0.035,
+    "HOOD": 0.04, "SOFI": 0.04,  "PLTR": 0.035, "APP":  0.04,
+    "SNAP": 0.04, "ROKU": 0.04,  "SHOP": 0.035, "SQ":   0.035,
+    "BABA": 0.035,
+    # Mid volatility
+    "META": 0.03, "GOOGL": 0.03, "AMZN": 0.03, "MSFT": 0.03,
+    "AAPL": 0.03, "NFLX":  0.03, "UBER": 0.03, "DIS":  0.03,
+    "INTC": 0.03,
+    # Low volatility — tight SL
+    "SPY":  0.015, "QQQ": 0.015, "JPM":  0.02, "BAC":  0.02,
+}
+
+def get_tp_pct(symbol):
+    return SYMBOL_TP_PCT.get(symbol, STOCK_TP_PCT)
+
+def get_sl_pct(symbol):
+    return SYMBOL_SL_PCT.get(symbol, STOCK_SL_PCT)
+

@@ -71,12 +71,13 @@ def get_daily_pnl():
     try:
         from trade_history import get_daily_summary
         closed_pnl = get_daily_summary().get("total_pnl", 0.0)
-        # Add open unrealized P&L
+        # Add open unrealized P&L — stocks only, options managed separately
         try:
             import json
             with open("bot_state.json") as f:
                 state = json.load(f)
-            open_pnl = sum(p.get("pnl_usd", 0) for p in state.get("positions", []))
+            open_pnl = sum(p.get("pnl_usd", 0) for p in state.get("positions", [])
+                          if p.get("market") == "stocks")
         except:
             open_pnl = 0.0
         return round(closed_pnl + open_pnl, 2)

@@ -35,9 +35,13 @@ KILL_SWITCH          = os.getenv("KILL_SWITCH", "0") == "1"
 TASTYTRADE_USERNAME  = os.getenv("TASTYTRADE_USERNAME", "")
 TASTYTRADE_PASSWORD  = os.getenv("TASTYTRADE_PASSWORD", "")
 
+# Alpaca
+ALPACA_API_KEY    = os.getenv("ALPACA_API_KEY", "")
+ALPACA_SECRET_KEY = os.getenv("ALPACA_SECRET_KEY", "")
+ALPACA_BASE_URL   = os.getenv("ALPACA_BASE_URL", "https://api.alpaca.markets")
+
 COINBASE_API_KEY     = os.getenv("COINBASE_API_KEY", "")
 COINBASE_PRIVATE_KEY = os.getenv("COINBASE_PRIVATE_KEY", "")
-
 
 TOP_PAIRS_COUNT      = 20
 CB_BASE_URL          = "https://api.coinbase.com"
@@ -57,17 +61,20 @@ STOCK_SYMBOLS = [
     "APP",  "SNAP", "ROKU", "SHOP", "SQ",
 ]
 
-def get_account_balance():
-    if not IS_LIVE:
-        return PAPER_BALANCE
+def validate_config():
+    """Validate config before bot starts."""
+    errors = []
     if MIN_CONFIDENCE < 0.72:
         errors.append(f"MIN_CONFIDENCE={MIN_CONFIDENCE} below 0.72 — unsafe for live")
+    if not ALPACA_API_KEY:
+        errors.append("ALPACA_API_KEY not set")
+    if not ALPACA_SECRET_KEY:
+        errors.append("ALPACA_SECRET_KEY not set")
     if errors:
         raise EnvironmentError("\n\nConfig errors:\n" + "\n".join(f"  x {e}" for e in errors))
     return True
 
-# Alpaca
-import os
-ALPACA_API_KEY    = os.getenv("ALPACA_API_KEY", "")
-ALPACA_SECRET_KEY = os.getenv("ALPACA_SECRET_KEY", "")
-ALPACA_BASE_URL   = os.getenv("ALPACA_BASE_URL", "https://api.alpaca.markets")
+def get_account_balance():
+    if not IS_LIVE:
+        return PAPER_BALANCE
+    return LIVE_ACCOUNT_BALANCE

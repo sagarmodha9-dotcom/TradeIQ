@@ -27,11 +27,11 @@ class AlpacaClient:
                     time.sleep(2 ** attempt)
                     continue
                 resp.raise_for_status()
-                return resp.json()
+                return resp.json() or {}
             except requests.exceptions.RequestException as e:
                 log.error(f"Alpaca request error ({attempt+1}/{retries}): {e}")
                 if attempt == retries - 1:
-                    raise
+                    return {}
                 time.sleep(2 ** attempt)
 
     def get_account(self):
@@ -59,40 +59,34 @@ class AlpacaClient:
             return False
 
     def get_bars(self, symbol, timeframe="1Hour", limit=100):
+        def _parse_bars(data):
+            result = []
+            if not data or not isinstance(data, dict):
+                return result
+            for b in (data or {}).get("bars", []) or []:
+                try:
+                    result.append({
+                        "time":   b["t"],
+                        "open":   float(b["o"]),
+                        "high":   float(b["h"]),
+                        "low":    float(b["l"]),
+                        "close":  float(b["c"]),
+                        "volume": float(b["v"]),
+                    })
+                except: pass
+            return result
         end   = datetime.now(timezone.utc)
         start = end - timedelta(hours=limit * 2)
-        endpoint = (
+        base_ep = (
             f"/v2/stocks/{symbol}/bars"
             f"?timeframe={timeframe}"
             f"&start={start.strftime('%Y-%m-%dT%H:%M:%SZ')}"
             f"&end={end.strftime('%Y-%m-%dT%H:%M:%SZ')}"
             f"&limit={limit}"
-            f"&feed=iex"
         )
-        data = self._request("GET", self.data_url, endpoint)
-        bars = []
-        for b in data.get("bars", []):
-            bars.append({
-                "time":   b["t"],
-                "open":   float(b["o"]),
-                "high":   float(b["h"]),
-                "low":    float(b["l"]),
-                "close":  float(b["c"]),
-                "volume": float(b["v"]),
-            })
-        # Fallback to sip feed if iex returns nothing
+        bars = _parse_bars(self._request("GET", self.data_url, base_ep + "&feed=iex"))
         if not bars:
-            endpoint_sip = endpoint.replace("feed=iex", "feed=sip")
-            data = self._request("GET", self.data_url, endpoint_sip)
-            for b in data.get("bars", []):
-                bars.append({
-                    "time":   b["t"],
-                    "open":   float(b["o"]),
-                    "high":   float(b["h"]),
-                    "low":    float(b["l"]),
-                    "close":  float(b["c"]),
-                    "volume": float(b["v"]),
-                })
+            bars = _parse_bars(self._request("GET", self.data_url, base_ep + "&feed=iex"))
         return bars
 
     def get_latest_price(self, symbol):

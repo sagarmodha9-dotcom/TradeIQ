@@ -10,6 +10,9 @@ _cache = {}
 
 def get_earnings_date(symbol: str):
     """Return next earnings date for symbol, cached for 6 hours."""
+    # Skip ETFs — they don't have earnings
+    if symbol in ["SPY", "QQQ", "IWM", "DIA", "GLD", "SLV", "TLT", "SQ", "XLF", "XLK"]:
+        return None
     now = datetime.now()
     if symbol in _cache:
         cached_val, cached_at = _cache[symbol]

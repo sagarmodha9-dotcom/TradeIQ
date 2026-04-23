@@ -21,7 +21,7 @@ class AlpacaClient:
         for attempt in range(retries):
             try:
                 resp = requests.request(
-                    method, url, headers=self.headers, json=body, timeout=15
+                    method, url, headers=self.headers, json=body, timeout=8
                 )
                 if resp.status_code == 429:
                     time.sleep(2 ** attempt)

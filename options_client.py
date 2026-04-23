@@ -173,3 +173,9 @@ class OptionsClient:
             return self.tt.get_option_price(contract_symbol)
         return 0.0
 
+    def get_option_price(self, contract_symbol):
+        """Get current price for an open position — delegates to Tastytrade."""
+        if self.tt:
+            return self.tt.get_option_price(contract_symbol)
+        return 0.0
+

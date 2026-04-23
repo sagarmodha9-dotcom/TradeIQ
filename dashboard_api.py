@@ -179,17 +179,44 @@ def get_status():
     # Live positions with real-time PnL
     positions = state.get("positions", [])
     enriched_positions = []
+    # Get live option prices from Tastytrade
+    try:
+        from tastytrade_client import TastytradeClient
+        _tt_live = TastytradeClient()
+    except:
+        _tt_live = None
+    # Get live stock prices from Alpaca
+    try:
+        from alpaca_client import AlpacaClient
+        _ac_live = AlpacaClient()
+    except:
+        _ac_live = None
+
     for p in positions:
         pos = dict(p)
         pid = p.get("product_id", "")
+        entry = float(p.get("entry_price", 0))
         if p.get("market") == "stocks":
-            live = _live_cache.get("ibkr_positions", {}).get(pid, {})
-            pos["pnl_usd"]      = live.get("pnl", p.get("pnl_usd", 0))
-            pos["current_price"] = live.get("current_price", p.get("entry_price", 0))
+            # Live stock price from Alpaca
+            try:
+                if _ac_live:
+                    live_price = _ac_live.get_latest_price(pid.strip())
+                    if live_price > 0:
+                        qty = float(p.get("quantity", 0))
+                        pos["current_price"] = live_price
+                        pos["pnl_usd"] = round((live_price - entry) * qty, 2)
+            except:
+                pass
         else:
-            live = _live_cache.get("tt_positions", {}).get(pid.strip(), {})
-            pos["pnl_usd"]      = live.get("pnl", p.get("pnl_usd", 0))
-            pos["current_price"] = live.get("current_price", p.get("entry_price", 0))
+            # Live option price from Tastytrade
+            try:
+                if _tt_live:
+                    live_price = _tt_live.get_option_price(pid.strip())
+                    if live_price > 0:
+                        pos["current_price"] = live_price
+                        pos["pnl_usd"] = round((live_price - entry) * 100, 2)
+            except:
+                pass
         enriched_positions.append(pos)
 
     # P&L calculations

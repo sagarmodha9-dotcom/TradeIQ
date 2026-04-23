@@ -170,33 +170,76 @@ def load_trade_history():
 def get_status():
     state = load_state()
     closed = load_trade_history()
+
+    # Live balances — Alpaca for stocks, Tastytrade for options
+    alpaca_balance  = _balance_cache["ibkr"]   # ibkr key now holds Alpaca balance
+    tt_balance      = _balance_cache["tt"]
+    total_portfolio = alpaca_balance + tt_balance
+
+    # Live positions with real-time PnL
+    positions = state.get("positions", [])
+    enriched_positions = []
+    for p in positions:
+        pos = dict(p)
+        pid = p.get("product_id", "")
+        if p.get("market") == "stocks":
+            live = _live_cache.get("ibkr_positions", {}).get(pid, {})
+            pos["pnl_usd"]      = live.get("pnl", p.get("pnl_usd", 0))
+            pos["current_price"] = live.get("current_price", p.get("entry_price", 0))
+        else:
+            live = _live_cache.get("tt_positions", {}).get(pid.strip(), {})
+            pos["pnl_usd"]      = live.get("pnl", p.get("pnl_usd", 0))
+            pos["current_price"] = live.get("current_price", p.get("entry_price", 0))
+        enriched_positions.append(pos)
+
+    # P&L calculations
+    import trade_history as _th
+    daily_closed_pnl = _th.get_daily_summary().get("total_pnl", 0)
+    open_pnl         = sum(p.get("pnl_usd", 0) for p in enriched_positions)
+    daily_pnl        = round(daily_closed_pnl + open_pnl, 2)
+
+    options_positions = [p for p in enriched_positions if p.get("market") == "options"]
+    stock_positions   = [p for p in enriched_positions if p.get("market") == "stocks"]
+    options_pnl       = round(sum(p.get("pnl_usd", 0) for p in options_positions), 2)
+    stock_pnl         = round(sum(p.get("pnl_usd", 0) for p in stock_positions), 2)
+
+    # Win rate from closed trades
+    wins   = len([t for t in closed if t.get("pnl_usd", 0) > 0])
+    losses = len([t for t in closed if t.get("pnl_usd", 0) <= 0])
+    win_rate = round(wins / (wins + losses), 2) if (wins + losses) > 0 else 0
+
+    # VIX
+    try:
+        import risk_manager
+        vix = risk_manager.get_vix()
+    except:
+        vix = 0
+
     return {
-        "timestamp":        datetime.now(timezone.utc).isoformat(),
-        "mode":             "live" if config.IS_LIVE else "paper",
-        "portfolio_usd":    _balance_cache["ibkr"] + _balance_cache["tt"],
-        "total_pnl":        round(__import__('trade_history').get_daily_summary().get("total_pnl", 0) + sum(p.get("pnl_usd",0) for p in state.get("positions",[])), 2),
-        "daily_pnl":        round(__import__('trade_history').get_daily_summary().get("total_pnl", 0) + sum(p.get("pnl_usd",0) for p in state.get("positions",[])), 2),
-        "win_rate":         state.get("stats", {}).get("win_rate", 0),
-        "total_trades":     state.get("stats", {}).get("total_trades", 0),
-        "open_positions":   [{**p, 
-            "pnl_usd": _live_cache.get("ibkr_positions", {}).get(p.get("product_id",""), {}).get("pnl", p.get("pnl_usd",0)) if p.get("market")=="stocks" else _live_cache.get("tt_positions", {}).get(p.get("product_id","").strip(), {}).get("pnl", p.get("pnl_usd",0)),
-            "current_price": _live_cache.get("ibkr_positions", {}).get(p.get("product_id",""), {}).get("current_price", p.get("entry_price",0)) if p.get("market")=="stocks" else _live_cache.get("tt_positions", {}).get(p.get("product_id","").strip(), {}).get("current_price", p.get("entry_price",0))
-        } for p in state.get("positions", [])],
-        "closed_trades":    closed,
-        "recent_trades":    closed[:20],
-        "last_signals":     state.get("signals", []),
-        "scanned_at":       state.get("scanned_at"),
-        "options_portfolio": _balance_cache["tt"],
-        "stock_portfolio":  _balance_cache["ibkr"],
-        "options_pnl":       _live_cache.get("tt_options_pnl", round(sum(p.get("pnl_usd",0) for p in state.get("positions",[]) if p.get("market")=="options"), 2)),
-        "stock_pnl":        round(sum(_live_cache.get("ibkr_positions", {}).get(p.get("product_id",""), {}).get("pnl", p.get("pnl_usd",0)) for p in state.get("positions",[]) if p.get("market")=="stocks"), 2),
-        "options_open":      state.get("options_open", 0),
-        "stock_open":       state.get("stock_open", 0),
-        "crypto_win_rate":  state.get("crypto_win_rate", 0),
-        "stock_win_rate":   state.get("stock_win_rate", 0),
-        "crypto_trades":    state.get("crypto_trades", 0),
-        "stock_trades":     state.get("stock_trades", 0),
-        "stats":            state.get("stats", {}),
+        "timestamp":         datetime.now(timezone.utc).isoformat(),
+        "mode":              "live" if config.IS_LIVE else "paper",
+        "portfolio_usd":     round(total_portfolio, 2),
+        "stock_portfolio":   round(alpaca_balance, 2),
+        "options_portfolio": round(tt_balance, 2),
+        "total_pnl":         daily_pnl,
+        "daily_pnl":         daily_pnl,
+        "options_pnl":       options_pnl,
+        "stock_pnl":         stock_pnl,
+        "win_rate":          win_rate,
+        "total_trades":      wins + losses,
+        "open_positions":    enriched_positions,
+        "closed_trades":     closed,
+        "recent_trades":     closed[:20],
+        "last_signals":      state.get("signals", []),
+        "scanned_at":        state.get("scanned_at"),
+        "options_open":      len(options_positions),
+        "stock_open":        len(stock_positions),
+        "vix":               vix,
+        "stock_win_rate":    win_rate,
+        "crypto_win_rate":   0,
+        "crypto_trades":     0,
+        "stock_trades":      wins + losses,
+        "stats":             state.get("stats", {}),
     }
 
 def get_crypto_chart(symbol, granularity="ONE_HOUR", limit=24):

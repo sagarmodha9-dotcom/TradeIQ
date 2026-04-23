@@ -285,3 +285,74 @@ class TastytradeClient:
         except Exception as e:
             log.error(f"Tastytrade get_balance: {e}")
             return 0.0
+
+    def get_real_greeks(self, streamer_symbol):
+        """Get real Greeks via DXFeed websocket. Returns dict with delta, gamma, theta, vega, iv or None."""
+        try:
+            import websocket, threading, time
+            token_resp = self._request("GET", "/api-quote-tokens")
+            token = token_resp.get("data", {}).get("token", "")
+            if not token:
+                return None
+            url = "wss://tasty-openapi-ws.dxfeed.com/realtime"
+            result = {}
+            done = threading.Event()
+
+            def on_open(ws):
+                ws.send(json.dumps({"type": "SETUP", "channel": 0, "version": "0.1", "minVersion": "0.1", "keepaliveTimeout": 60, "acceptKeepaliveTimeout": 60}))
+                ws.send(json.dumps({"type": "AUTH", "channel": 0, "token": token}))
+                ws.send(json.dumps({"type": "CHANNEL_REQUEST", "channel": 1, "service": "FEED", "parameters": {"contract": "AUTO"}}))
+                ws.send(json.dumps({"type": "FEED_SETUP", "channel": 1, "acceptAggregationPeriod": 10, "acceptDataFormat": "COMPACT",
+                    "acceptEventFields": {"Greeks": ["eventType","eventSymbol","delta","gamma","theta","vega","impliedVolatility","rho"]}
+                }))
+                ws.send(json.dumps({"type": "FEED_SUBSCRIPTION", "channel": 1, "reset": True,
+                    "add": [{"type": "Greeks", "symbol": streamer_symbol}]
+                }))
+
+            def on_message(ws, msg):
+                data = json.loads(msg)
+                if data.get("type") == "FEED_DATA":
+                    fields = data.get("data", [])
+                    if fields and len(fields) >= 2:
+                        values = fields[1]
+                        if isinstance(values, list) and len(values) >= 7:
+                            result["delta"] = float(values[2])
+                            result["gamma"] = float(values[3])
+                            result["theta"] = float(values[4])
+                            result["vega"]  = float(values[5])
+                            result["iv"]    = float(values[6]) if len(values) > 6 else 0.0
+                    ws.close()
+                    done.set()
+
+            def on_error(ws, err):
+                done.set()
+
+            ws_app = websocket.WebSocketApp(url, on_open=on_open, on_message=on_message, on_error=on_error)
+            t = threading.Thread(target=ws_app.run_forever)
+            t.daemon = True
+            t.start()
+            done.wait(timeout=8)
+            return result if result else None
+        except Exception as e:
+            log.debug(f"get_real_greeks {streamer_symbol}: {e}")
+            return None
+
+    def get_streamer_symbol(self, symbol, expiry, strike, option_type):
+        """Get DXFeed streamer symbol from option chain."""
+        try:
+            data = self._request("GET", f"/option-chains/{symbol}/nested")
+            items = data.get("data", {}).get("items", [])
+            if not items:
+                return None
+            side_key = "call-streamer-symbol" if option_type == "call" else "put-streamer-symbol"
+            for exp in items[0].get("expirations", []):
+                if exp.get("expiration-date") != expiry:
+                    continue
+                for s in exp.get("strikes", []):
+                    if float(s.get("strike-price", 0)) == float(strike):
+                        return s.get(side_key, "")
+            return None
+        except Exception as e:
+            log.debug(f"get_streamer_symbol {symbol}: {e}")
+            return None
+

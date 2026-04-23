@@ -289,10 +289,9 @@ def monitor_stock_positions(ibkr, pt):
             entry  = float(pos["entry_price"])
             # Trailing stop: once up 3%, move SL to breakeven; up 4.5%, trail at 1.5% below current
             try:
-                bars = ibkr.get_bars(symbol, timeframe="1Min", limit=1)
-                if not bars:
+                current = ibkr.get_latest_price(symbol)
+                if not current or current <= 0:
                     continue
-                current = float(bars[-1].get("c") or bars[-1].get("close") or 0)
                 pnl = (current - entry) * float(pos["quantity"])
                 pnl_pct = (current - entry) / entry * 100 if entry > 0 else 0
                 if current >= entry * 1.045:

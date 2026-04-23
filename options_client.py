@@ -108,7 +108,11 @@ class OptionsClient:
                     if not (0.005 <= pct_otm <= 0.08):
                         continue
 
-                    # Approximate delta — no API call
+                    # Try real Greeks first, fall back to approximation
+                    streamer = c.get("symbol", "").strip()
+                    # Convert contract symbol to streamer format if needed
+                    greeks = None
+                    # Use approximation for filtering (fast), real Greeks for winner only
                     delta = self._approx_delta(pct_otm, days_out)
                     if not (0.25 <= delta <= 0.55):
                         continue
@@ -125,7 +129,21 @@ class OptionsClient:
             # Pick candidate with delta closest to 0.40
             best = sorted(best_candidates, key=lambda c: abs(c.get("delta", 0.35) - 0.40))[0]
 
-            # Step 4: Fetch price for the single winner only (one API call)
+            # Step 4: Fetch real Greeks + price for winner only
+            # Get streamer symbol from chain data
+            expiry    = best.get("expiration_date", "")
+            strike    = float(best.get("strike_price", 0))
+            streamer  = self.tt.get_streamer_symbol(symbol, expiry, strike, option_type)
+            if streamer:
+                greeks = self.tt.get_real_greeks(streamer)
+                if greeks:
+                    best["delta"] = greeks.get("delta", best["delta"])
+                    best["gamma"] = greeks.get("gamma", 0)
+                    best["theta"] = greeks.get("theta", 0)
+                    best["vega"]  = greeks.get("vega",  0)
+                    best["iv"]    = greeks.get("iv",    0)
+                    log.info(f"Options {symbol}: real Greeks — delta={best['delta']:.3f} theta={best['theta']:.3f} iv={best['iv']:.3f}")
+
             price = self.tt.get_option_price(best.get("symbol", ""))
             if price <= 0:
                 log.info(f"Options {symbol}: winner price unavailable (market closed?)")

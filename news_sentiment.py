@@ -75,6 +75,10 @@ def get_news_sentiment(symbol: str) -> dict:
         return default
 
 def adjust_signal_for_news(symbol: str, signal: dict) -> dict:
+    # Whitelist — bypass news block for known false positives
+    NEWS_WHITELIST = ["AAPL", "MSFT", "GOOGL", "AMZN"]
+    if symbol in NEWS_WHITELIST:
+        return signal
     """
     Adjust signal confidence based on news sentiment.
     Returns modified signal or None if news blocks the trade.

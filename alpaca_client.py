@@ -110,7 +110,7 @@ class AlpacaClient:
                 return price
             # Fallback — get last bar close price
             bars = self.get_bars(symbol, timeframe="1Hour", limit=1)
-            if bars:
+            if bars and bars[-1]["close"] > 0:
                 return bars[-1]["close"]
             return 0.0
         except Exception as e:

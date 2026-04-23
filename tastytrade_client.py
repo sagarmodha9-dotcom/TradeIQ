@@ -118,7 +118,8 @@ class TastytradeClient:
         try:
             # Use Tastytrade market data endpoint
             sym = contract_symbol.strip()
-            data = self._request("GET", f"/market-data/options?symbols[]={sym}")
+            sym_encoded = sym.replace("  ", " ")  # fix double space
+            data = self._request("GET", f"/market-data/options?symbols[]={sym_encoded}")
             if data and "data" in data:
                 items = data["data"].get("items", [])
                 for item in items:

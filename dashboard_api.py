@@ -42,35 +42,26 @@ def _refresh_live_background():
             try:
                 import config, json
                 if config.IS_LIVE:
-                    # Get live IBKR positions using ib_insync with asyncio
+                    # Get live Alpaca positions
                     try:
-                        import asyncio
-                        import nest_asyncio
-                        nest_asyncio.apply()
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                        from ib_insync import IB
-                        _ib = IB()
-                        _ib.connect("127.0.0.1", config.IBKR_PORT, clientId=77, timeout=8)
-                        portfolio = _ib.portfolio()
+                        from alpaca_client import AlpacaClient
+                        ac = AlpacaClient()
+                        positions = ac.get_positions()
                         live_positions = {}
                         total_market_value = 0
-                        for item in portfolio:
-                            sym = item.contract.symbol
-                            price = item.marketPrice if item.marketPrice and item.marketPrice > 1 else item.averageCost
-                            pnl = round(item.unrealizedPNL, 2)
-                            mval = round(item.marketValue, 2) if item.marketValue and item.marketValue > 0 else round(item.averageCost * abs(item.position), 2)
+                        for p in positions:
+                            sym = p.get("symbol", "")
+                            price = float(p.get("current_price", 0) or 0)
+                            pnl = round(float(p.get("unrealized_pl", 0) or 0), 2)
+                            mval = round(float(p.get("market_value", 0) or 0), 2)
                             live_positions[sym] = {"pnl": pnl, "current_price": round(price, 2), "market_value": mval}
                             total_market_value += mval
                         if live_positions:
                             _live_cache["ibkr_positions"] = live_positions
-                        try:
-                            cash = float([v.value for v in _ib.accountValues() if v.tag == "TotalCashValue" and v.currency == "USD"][0])
-                            _balance_cache["ibkr"] = round(total_market_value + cash, 2)
-                        except: pass
-                        _ib.disconnect()
+                        cash = ac.get_cash_balance()
+                        _balance_cache["ibkr"] = round(total_market_value + cash, 2)
                     except Exception as e:
-                        log.error(f"Live IBKR fetch error: {e}")
+                        log.error(f"Live Alpaca fetch error: {e}")
 
                     # Get live Tastytrade balance + option prices
                     try:
@@ -184,7 +175,7 @@ def get_status():
         "mode":             "live" if config.IS_LIVE else "paper",
         "portfolio_usd":    _balance_cache["ibkr"] + _balance_cache["tt"],
         "total_pnl":        round(__import__('trade_history').get_daily_summary().get("total_pnl", 0) + sum(p.get("pnl_usd",0) for p in state.get("positions",[])), 2),
-        "daily_pnl":        round(__import__('trade_history').get_daily_summary().get("total_pnl", 0) + sum(p.get("pnl_usd",0) for p in state.get("positions",[])), 2),
+        "daily_pnl":        round(__import__('trade_history').get_daily_summary().get("total_pnl", 0) + sum(p.get("pnl_usd",0) for p in state.get("positions",[])) - sum(t.get("pnl_usd",0) for t in __import__('trade_history').load_all() if t.get("date","") < __import__('datetime').date.today().isoformat()), 2),
         "win_rate":         state.get("stats", {}).get("win_rate", 0),
         "total_trades":     state.get("stats", {}).get("total_trades", 0),
         "open_positions":   [{**p, 

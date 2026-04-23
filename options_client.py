@@ -7,8 +7,9 @@ from logger import log
 import config
 
 class OptionsClient:
-    def __init__(self, ibkr_client=None):
+    def __init__(self, ibkr_client=None, alpaca_client=None):
         self.ibkr = ibkr_client
+        self.alpaca = alpaca_client
         # Use Tastytrade for options
         try:
             from tastytrade_client import TastytradeClient
@@ -21,7 +22,7 @@ class OptionsClient:
     def get_option_delta(self, symbol, expiry, strike, option_type):
         """Estimate option delta based on moneyness."""
         try:
-            current = self.ibkr.get_latest_price(symbol) if self.ibkr else 0
+            current = self.alpaca.get_latest_price(symbol) if hasattr(self, "alpaca") and self.alpaca else (self.ibkr.get_latest_price(symbol) if self.ibkr else 0)
             if current <= 0:
                 return 0.35
             K = float(strike)

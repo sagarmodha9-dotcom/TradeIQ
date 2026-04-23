@@ -92,10 +92,10 @@ class AlpacaClient:
             bid = float(quote.get("bp", 0))
             ask = float(quote.get("ap", 0))
             mid = (bid + ask) / 2 if bid and ask else 0
-            return {"symbol": symbol, "bid": bid, "ask": ask, "mid": mid}
+            return mid if mid > 0 else ask if ask > 0 else bid
         except Exception as e:
             log.error(f"Alpaca price error {symbol}: {e}")
-            return {"symbol": symbol, "bid": 0, "ask": 0, "mid": 0}
+            return 0.0
 
     def place_market_order(self, symbol, side, notional=None, qty=None):
         import uuid

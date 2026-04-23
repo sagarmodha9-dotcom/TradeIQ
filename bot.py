@@ -23,7 +23,7 @@ from logger import log
 
 # In-memory cooldown
 _trade_cooldown = {}
-from ibkr_client import IBKRClient
+from alpaca_client import AlpacaClient as IBKRClient
 from analyzer import Analyzer
 from stock_analyzer import StockAnalyzer
 from trade_manager import TradeManager
@@ -233,7 +233,7 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
                         continue
                     size_usd = get_position_size(symbol, pt.stock_balance * config.MAX_POSITION_PCT, ibkr)
                     fill = ibkr.place_market_order(symbol, "buy", notional=size_usd)
-                    if fill and fill.get("status") not in [None, "Cancelled", "Inactive", "PreSubmitted"]:
+                    if fill and fill.get("status") in ["filled", "partially_filled", "Filled"]:
                         entry_price = float(signal["entry_price"] or 0)
                         qty = fill.get("qty", 1)
                         positions.append({
@@ -878,7 +878,7 @@ def main():
     _ibkr_fail_count = 0
     from options_client import OptionsClient
     from options_analyzer import OptionsAnalyzer
-    options_client   = OptionsClient(ibkr_client=ibkr)
+    options_client   = OptionsClient(ibkr_client=None, alpaca_client=ibkr)
     options_analyzer = OptionsAnalyzer()
 
 

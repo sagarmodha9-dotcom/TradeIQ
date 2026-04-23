@@ -225,6 +225,9 @@ class StockAnalyzer:
             signal["symbol"]     = symbol
             signal["market"]     = "stocks"
             signal["indicators"] = indicators
+            signal["entry_price"] = float(signal.get("entry_price") or 0)
+            signal["stop_loss"]   = float(signal.get("stop_loss")   or 0)
+            signal["take_profit"] = float(signal.get("take_profit")  or 0)
             log.info(f"{symbol}: {signal['action']} | conf={signal['confidence']:.0%} | entry=${signal['entry_price']:,.2f}")
             return signal
         except Exception as e:

@@ -199,6 +199,12 @@ class TastytradeClient:
             if order_id:
                 log.info(f"Tastytrade order: {action} {contract_symbol} x{qty} — ID {order_id}")
                 return {"success": True, "order_id": order_id, "symbol": contract_symbol}
+            # Check for closing_only restriction
+            errors = data.get("error", {}).get("errors", [])
+            for e in errors:
+                if e.get("code") == "closing_only":
+                    log.warning(f"Tastytrade: {contract_symbol} is closing only — skipping")
+                    return {"success": False, "error": "closing_only"}
             log.error(f"Tastytrade order failed: {data}")
             return {"success": False}
         except Exception as e:

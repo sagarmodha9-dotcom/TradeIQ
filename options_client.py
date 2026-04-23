@@ -71,7 +71,7 @@ class OptionsClient:
                             if ed:
                                 from datetime import datetime
                                 days = (datetime.strptime(ed, "%Y-%m-%d").date() - date.today()).days
-                                if 5 <= days <= 45:
+                                if 8 <= days <= 45:  # min 8 days to avoid closing_only restriction
                                     available_expiries.append(ed)
                 except: pass
 

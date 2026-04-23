@@ -90,32 +90,34 @@ class AlpacaClient:
         return bars
 
     def get_latest_price(self, symbol):
-        try:
+        # Try latest trade (most reliable)
+        for feed in ["iex", "sip"]:
             try:
-                data = self._request(
-                    "GET", self.data_url,
-                    f"/v2/stocks/{symbol}/quotes/latest?feed=iex"
-                )
-            except:
-                data = self._request(
-                    "GET", self.data_url,
-                    f"/v2/stocks/{symbol}/quotes/latest?feed=sip"
-                )
-            quote = data.get("quote", {})
-            bid = float(quote.get("bp", 0))
-            ask = float(quote.get("ap", 0))
-            mid = (bid + ask) / 2 if bid and ask else 0
-            price = mid if mid > 0 else ask if ask > 0 else bid
-            if price > 0:
-                return price
-            # Fallback — get last bar close price
+                data = self._request("GET", self.data_url,
+                    f"/v2/stocks/{symbol}/trades/latest?feed={feed}") or {}
+                price = float(data.get("trade", {}).get("p", 0))
+                if price > 0:
+                    return price
+            except: pass
+        # Try quote
+        for feed in ["iex", "sip"]:
+            try:
+                data = self._request("GET", self.data_url,
+                    f"/v2/stocks/{symbol}/quotes/latest?feed={feed}") or {}
+                quote = data.get("quote", {})
+                bid = float(quote.get("bp", 0))
+                ask = float(quote.get("ap", 0))
+                mid = (bid + ask) / 2 if bid and ask else 0
+                if mid > 0:
+                    return mid
+            except: pass
+        # Final fallback — last bar
+        try:
             bars = self.get_bars(symbol, timeframe="1Hour", limit=1)
             if bars and bars[-1]["close"] > 0:
                 return bars[-1]["close"]
-            return 0.0
-        except Exception as e:
-            log.error(f"Alpaca price error {symbol}: {e}")
-            return 0.0
+        except: pass
+        return 0.0
 
     def place_market_order(self, symbol, side, notional=None, qty=None):
         import uuid

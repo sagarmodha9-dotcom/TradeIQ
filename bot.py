@@ -562,6 +562,10 @@ def run_options_scan(options_client, options_analyzer, stock_signals, pt):
             if fill["success"]:
                 cost = float(contract.get("close_price", 0) or 0) * 100
                 log.info(f"OPTIONS {opt_signal['strategy'].upper()} {contract_sym} cost=${cost:.2f}")
+                try:
+                    from notifier import alert_option_bought
+                    alert_option_bought(symbol, contract_sym, contract.get("strike_price",""), contract.get("expiration_date",""), cost, contract.get("delta",0))
+                except: pass
                 positions.append({
                     "product_id":  contract_sym,
                     "underlying":  symbol,
@@ -592,7 +596,7 @@ def run_scan(cb, ibkr, analyzer, stock_analyzer, tm, pt, options_client=None, op
     tm.monitor_positions()
     monitor_stock_positions(ibkr, pt)
     monitor_option_positions(options_client)
-    pass  # earnings scan disabled until Alpaca deposit clears
+    run_earnings_options_scan(options_client, ibkr)
     stock_signals, stock_pos   = run_stock_scan(ibkr, stock_analyzer, pt)
     options_pos = run_options_scan(options_client, options_analyzer, stock_signals, pt) if options_client else []
     # Crypto disabled - focusing on stocks + options only
@@ -755,7 +759,7 @@ def run_premarket_scan(ibkr, analyzer, stock_analyzer):
     return watchlist
 
 
-def run_earnings_options_scan_DISABLED(options_client, ibkr):
+def run_earnings_options_scan(options_client, ibkr):
     """
     Scan for upcoming earnings 5-10 days out.
     Automatically buy 30-day calls on strong stocks before earnings.
@@ -831,6 +835,10 @@ def run_earnings_options_scan_DISABLED(options_client, ibkr):
             if fill and fill.get("success"):
                 cost = float(contract.get("close_price", 0)) * 100
                 contract_sym = contract.get("symbol", "")
+                try:
+                    from notifier import alert_option_bought
+                    alert_option_bought(symbol, contract_sym, contract.get("strike_price",""), contract.get("expiration_date",""), cost, contract.get("delta",0))
+                except: pass
 
                 # Save to positions
                 state["positions"].append({

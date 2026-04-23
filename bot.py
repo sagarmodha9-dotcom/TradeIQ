@@ -365,36 +365,14 @@ def monitor_stock_positions(ibkr, pt):
         log.error(f"monitor_stock_positions error: {e}")
 
 def get_option_price_yf(contract_symbol):
-    """Get live option price from Yahoo Finance."""
+    """Get live option price via Tastytrade API."""
     try:
-        import yfinance as yf
-        import re
-        # Parse contract: NVDA260413C00180000
-        m = re.match(r'^([A-Z]+)(\d{2})(\d{2})(\d{2})([CP])(\d+)$', contract_symbol)
-        if not m:
-            return 0
-        sym, y, mo, d, cp, strike_raw = m.groups()
-        expiry = f"20{y}-{mo}-{d}"
-        strike = int(strike_raw) / 1000
-        option_type = "calls" if cp == "C" else "puts"
-        ticker = yf.Ticker(sym)
-        chain = ticker.option_chain(expiry)
-        df = getattr(chain, option_type)
-        row = df[df["strike"] == strike]
-        if row.empty:
-            # Try closest strike
-            row = df.iloc[(df["strike"] - strike).abs().argsort()[:1]]
-        if not row.empty:
-            price = float(row["lastPrice"].iloc[0])
-            if price == 0:
-                bid = float(row["bid"].iloc[0])
-                ask = float(row["ask"].iloc[0])
-                price = (bid + ask) / 2 if bid > 0 and ask > 0 else 0
-            return price
-        return 0
-    except Exception as e:
-        log.error(f"YF option price error {contract_symbol}: {e}")
-        return 0
+        from tastytrade_client import TastytradeClient
+        tt = TastytradeClient()
+        return tt.get_option_price(contract_symbol)
+    except:
+        return 0.0
+
 
 def monitor_option_positions(options_client):
     """Update P&L on open options positions using Yahoo Finance."""
@@ -665,8 +643,6 @@ def run_premarket_scan(ibkr, analyzer, stock_analyzer):
     """
     from datetime import datetime
     import pytz
-    import yfinance as yf
-
     EASTERN = pytz.timezone("US/Eastern")
     now = datetime.now(EASTERN)
 
@@ -679,20 +655,20 @@ def run_premarket_scan(ibkr, analyzer, stock_analyzer):
     log.info("🌅 PRE-MARKET SCAN starting...")
     watchlist = []
 
+    from alpaca_client import AlpacaClient
+    ac = AlpacaClient()
     for symbol in config.STOCK_SYMBOLS:
         try:
-            ticker = yf.Ticker(symbol)
-            hist   = ticker.history(period="5d", interval="1d", timeout=5)
+            hist = ac.get_bars(symbol, timeframe="1Day", limit=5)
             if len(hist) < 2:
                 continue
 
-            prev_close   = float(hist["Close"].iloc[-2])
-            prev_volume  = float(hist["Volume"].iloc[-2])
-            avg_volume   = float(hist["Volume"].iloc[-5:].mean())
+            prev_close  = float(hist[-2]["close"])
+            prev_volume = float(hist[-2]["volume"])
+            avg_volume  = sum(float(b["volume"]) for b in hist[-5:]) / min(5, len(hist))
 
-            # Get pre-market price
-            info = ticker.fast_info
-            pre_price = getattr(info, "last_price", None) or prev_close
+            # Get latest price
+            pre_price = ac.get_latest_price(symbol) or prev_close
 
             gap_pct      = (pre_price - prev_close) / prev_close * 100
             volume_ratio = prev_volume / avg_volume if avg_volume > 0 else 1.0

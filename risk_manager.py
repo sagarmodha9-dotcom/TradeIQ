@@ -2,7 +2,6 @@ import os
 import json
 from datetime import datetime, timezone
 import pytz
-import yfinance as yf
 import config
 from logger import log
 
@@ -19,11 +18,12 @@ def get_spy_change():
     if _spy_cache["fetched_at"] and (now - _spy_cache["fetched_at"]).total_seconds() < 300:
         return _spy_cache["pct_change"]
     try:
-        import yfinance as _yf
-        hist = _yf.Ticker("SPY").history(period="2d", interval="1d", timeout=3)
-        if len(hist) >= 2:
-            prev_close = float(hist["Close"].iloc[-2])
-            curr_close = float(hist["Close"].iloc[-1])
+        from alpaca_client import AlpacaClient
+        ac = AlpacaClient()
+        bars = ac.get_bars("SPY", timeframe="1Day", limit=2)
+        if bars and len(bars) >= 2:
+            prev_close = float(bars[-2]["close"])
+            curr_close = float(bars[-1]["close"])
             pct = (curr_close - prev_close) / prev_close * 100
             _spy_cache["value"] = curr_close
             _spy_cache["pct_change"] = pct
@@ -133,13 +133,22 @@ def get_vix():
     if _vix_cache["fetched_at"] and (now - _vix_cache["fetched_at"]).total_seconds() < 900:
         return _vix_cache["value"]
     try:
-        import yfinance as _yf
-        hist = _yf.Ticker("^VIX").history(period="5d", interval="1d", timeout=3)
-        if not hist.empty:
-            val = float(hist["Close"].iloc[-1])
-            _vix_cache["value"] = val
-            _vix_cache["fetched_at"] = now
-            return val
+        # VIX approximation using SPY volatility via Alpaca
+        try:
+            from alpaca_client import AlpacaClient
+            ac = AlpacaClient()
+            bars = ac.get_bars("SPY", timeframe="1Day", limit=20)
+            if bars and len(bars) >= 5:
+                closes = [b["close"] for b in bars]
+                import statistics
+                daily_returns = [(closes[i]-closes[i-1])/closes[i-1] for i in range(1,len(closes))]
+                vol = statistics.stdev(daily_returns) * (252**0.5) * 100
+                val = round(vol, 2)
+                _vix_cache["value"] = val
+                _vix_cache["fetched_at"] = now
+                return val
+        except: pass
+        return float(_vix_cache.get("value", 18.0) or 18.0)
     except Exception:
         pass
     return _vix_cache["value"] or 20.0

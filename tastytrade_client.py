@@ -114,24 +114,39 @@ class TastytradeClient:
             return []
 
     def get_option_price(self, contract_symbol):
-        """Get current market price of an option contract via yfinance."""
+        """Get current market price of an option contract via Tastytrade API."""
         try:
-            import yfinance as yf
-            # Convert Tastytrade symbol to yfinance format
-            # NVDA  260515C00190000 -> NVDA260515C00190000
-            clean = contract_symbol.strip().replace(" ", "")
-            ticker = yf.Ticker(clean)
-            hist = ticker.history(period="1d", interval="1m")
-            if not hist.empty:
-                return float(hist["Close"].iloc[-1])
-            # Try info
-            info = ticker.info
-            price = info.get("regularMarketPrice") or info.get("ask") or 0
-            return float(price)
+            # Use Tastytrade market data endpoint
+            sym = contract_symbol.strip()
+            data = self._request("GET", f"/market-data/options?symbols[]={sym}")
+            if data and "data" in data:
+                items = data["data"].get("items", [])
+                for item in items:
+                    bid = float(item.get("bid", 0) or 0)
+                    ask = float(item.get("ask", 0) or 0)
+                    mid = (bid + ask) / 2 if bid and ask else 0
+                    if mid > 0:
+                        return mid
+            # Fallback — use option chain nested data
+            parts = sym.replace("  ", " ").split()
+            if parts:
+                underlying = parts[0]
+                data2 = self._request("GET", f"/option-chains/{underlying}/nested")
+                if data2 and "data" in data2:
+                    items = data2["data"].get("items", [])
+                    for exp_group in items:
+                        for exp in exp_group.get("expirations", []):
+                            for strike in exp.get("strikes", []):
+                                for side in ["call", "put"]:
+                                    if strike.get(side, "").strip() == sym:
+                                        price = float(strike.get("close-price", 0) or 0)
+                                        if price > 0:
+                                            return price
         except Exception as e:
-            log.warning(f"get_option_price {contract_symbol}: {e}")
-            return 0.0
+            pass
+        return 0.0
 
+    
     def place_option_order(self, contract_symbol, qty=1, side="buy"):
         """Place an options order on Tastytrade."""
         if not config.IS_LIVE:

@@ -138,13 +138,31 @@ class AlpacaClient:
                 "fill_value_usd": notional or (qty * fill_price),
                 "timestamp":      datetime.now(timezone.utc).isoformat(),
             }
+        # Check if pre/post market
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        hour = now.hour
+        is_extended = (hour < 13 or hour >= 20)  # before 9AM ET or after 4PM ET
+
         body = {
             "symbol":           symbol,
             "side":             side,
-            "type":             "market",
+            "type":             "limit" if is_extended else "market",
             "time_in_force":    "day",
             "client_order_id":  client_order_id,
+            "extended_hours":   is_extended,
         }
+        # Extended hours requires limit order — use current price
+        if is_extended:
+            price = self.get_latest_price(symbol)
+            if price > 0:
+                # Buy slightly above, sell slightly below to ensure fill
+                limit = round(price * 1.005 if side == "buy" else price * 0.995, 2)
+                body["limit_price"] = str(limit)
+            else:
+                # Fall back to market during regular hours
+                body["type"] = "market"
+                body.pop("extended_hours", None)
         if notional:
             body["notional"] = str(round(notional, 2))
         elif qty:

@@ -755,7 +755,7 @@ def run_premarket_scan(ibkr, analyzer, stock_analyzer):
     return watchlist
 
 
-def run_earnings_options_scan(options_client, ibkr):
+def run_earnings_options_scan_DISABLED(options_client, ibkr):
     """
     Scan for upcoming earnings 5-10 days out.
     Automatically buy 30-day calls on strong stocks before earnings.

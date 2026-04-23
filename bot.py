@@ -232,6 +232,13 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
                         log.info(f"[BLOCKED] {symbol}: {reason}")
                         continue
                     size_usd = get_position_size(symbol, pt.stock_balance * config.MAX_POSITION_PCT, ibkr)
+                    # Check Alpaca has enough cash before ordering
+                    try:
+                        avail_cash = ibkr.get_cash_balance()
+                        if avail_cash < size_usd:
+                            log.warning(f"[BLOCKED] {symbol}: insufficient cash ${avail_cash:.0f} < ${size_usd:.0f}")
+                            continue
+                    except: pass
                     fill = ibkr.place_market_order(symbol, "buy", notional=size_usd)
                     if fill and fill.get("status") in ["filled", "partially_filled", "Filled"]:
                         entry_price = float(signal["entry_price"] or 0)
@@ -809,7 +816,13 @@ def run_earnings_options_scan(options_client, ibkr):
             log.info(f"🎯 EARNINGS PLAY: {symbol} reports in {dte} days — looking for call...")
 
             # Use 30-day expiry for earnings plays (capture full move)
-            contract = options_client.find_best_option(symbol, "call", budget=1000)
+            # Check available buying power before ordering
+            try:
+                tt_bp = options_client.tt.get_account_balance() if options_client.tt else 0
+                available_bp = tt_bp * 0.85  # use max 85% of buying power
+            except:
+                available_bp = 500
+            contract = options_client.find_best_option(symbol, "call", budget=min(1000, available_bp))
             if not contract:
                 log.info(f"Earnings play {symbol}: no suitable contract found")
                 continue

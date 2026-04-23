@@ -179,14 +179,4 @@ class OptionsClient:
                     return price
             except Exception as e:
                 log.warning(f"get_option_price TT {contract_symbol}: {e}")
-        # Fallback to Yahoo Finance (remove space for yf format)
-        try:
-            import yfinance as yf
-            yf_symbol = contract_symbol.replace(" ", "")
-            ticker = yf.Ticker(yf_symbol)
-            hist = ticker.history(period="1d", interval="1m")
-            if not hist.empty:
-                return float(hist["Close"].iloc[-1])
-        except Exception as e:
-            log.warning(f"get_option_price YF {contract_symbol}: {e}")
         return 0.0

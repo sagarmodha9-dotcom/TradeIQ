@@ -62,7 +62,7 @@ class PortfolioTracker:
         self._save()
 
     def update_stock_balance(self, ibkr_equity: float, initial: float = None):
-        """Update stock balance from IBKR account equity."""
+        """Update stock balance from Alpaca account equity."""
         import config
         if initial is None:
             initial = config.LIVE_ACCOUNT_BALANCE if config.IS_LIVE else config.PAPER_BALANCE

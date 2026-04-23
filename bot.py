@@ -910,7 +910,7 @@ def main():
                         "stop_loss": round(p["avg_entry_price"] * 0.97, 2),
                         "take_profit": round(p["avg_entry_price"] * 1.06, 2),
                         "confidence": 0.72,
-                        "reasoning": "Synced from IBKR on startup",
+                        "reasoning": "Synced from Alpaca on startup",
                         "opened_at": __import__("datetime").datetime.now().isoformat(),
                         "market": "stocks",
                         "pnl_usd": 0.0,
@@ -920,7 +920,7 @@ def main():
                 json.dump(state, f, indent=2)
             log.info(f"✅ Alpaca sync: {before} → {after} stock positions ({len(ibkr_symbols)} in Alpaca)")
         except Exception as e:
-            log.error(f"IBKR startup sync error: {e}")
+            log.error(f"Alpaca startup sync error: {e}")
 
     sync_ibkr_positions()
     analyzer       = Analyzer()

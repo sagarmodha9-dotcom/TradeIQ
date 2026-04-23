@@ -12,7 +12,7 @@ import config
 class OptionsClient:
     def __init__(self, alpaca_client=None, ibkr_client=None):
         self.alpaca = alpaca_client
-        self.ibkr   = ibkr_client
+        self.ibkr   = None  # IBKR removed — Alpaca only
         try:
             from tastytrade_client import TastytradeClient
             self.tt = TastytradeClient()

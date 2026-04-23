@@ -114,7 +114,7 @@ class OptionsClient:
                     greeks = None
                     # Use approximation for filtering (fast), real Greeks for winner only
                     delta = self._approx_delta(pct_otm, days_out)
-                    if not (0.25 <= delta <= 0.55):
+                    if not (0.30 <= delta <= 0.55):
                         continue
 
                     c["delta"]           = delta

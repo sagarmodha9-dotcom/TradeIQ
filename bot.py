@@ -806,6 +806,28 @@ def run_earnings_options_scan(options_client, ibkr):
                 log.info(f"Earnings play {symbol}: no suitable contract found")
                 continue
 
+            # Quality filter using real Greeks
+            delta = float(contract.get("delta", 0))
+            theta = float(contract.get("theta", 0))
+            iv    = float(contract.get("iv", 0))
+
+            # Delta must be 0.35-0.50 — not too deep, not too far OTM
+            if not (0.35 <= delta <= 0.50):
+                log.info(f"Earnings play {symbol}: delta {delta:.3f} outside 0.35-0.50 range — skip")
+                continue
+
+            # Theta decay must not exceed $15/day (theta is per share, x100)
+            if theta < -0.15:
+                log.info(f"Earnings play {symbol}: theta {theta:.3f} too negative (>${abs(theta)*100:.1f}/day decay) — skip")
+                continue
+
+            # IV crush risk — skip if IV > 120% (too expensive pre-earnings)
+            if iv > 1.20:
+                log.info(f"Earnings play {symbol}: IV {iv:.1%} too high — skip")
+                continue
+
+            log.info(f"Earnings play {symbol}: Greeks OK — delta={delta:.3f} theta={theta:.3f} iv={iv:.1%}")
+
             fill = options_client.place_option_order(contract.get("symbol",""), qty=1, side="buy")
             if fill and fill.get("success"):
                 cost = float(contract.get("close_price", 0)) * 100

@@ -28,7 +28,7 @@ MAX_VIX              = float(os.getenv("MAX_VIX", 30.0))
 NO_TRADE_OPEN_MINS   = int(os.getenv("NO_TRADE_OPEN_MINS", 15))
 NO_TRADE_CLOSE_MINS  = int(os.getenv("NO_TRADE_CLOSE_MINS", 15))
 KELLY_FRACTION       = 0.25
-SCAN_INTERVAL        = int(os.getenv("SCAN_INTERVAL_SECONDS", 300))
+SCAN_INTERVAL        = int(os.getenv("SCAN_INTERVAL_SECONDS", 60))
 KILL_SWITCH          = os.getenv("KILL_SWITCH", "0") == "1"
 
 # Tastytrade

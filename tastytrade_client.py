@@ -80,7 +80,10 @@ class TastytradeClient:
             resp.raise_for_status()
             return resp.json()
         except Exception as e:
-            log.error(f"Tastytrade API error {endpoint}: {e}")
+            if "404" in str(e):
+                log.debug(f"Tastytrade 404 (after-hours expected): {endpoint}")
+            else:
+                log.error(f"Tastytrade API error {endpoint}: {e}")
             return {}
 
     def get_option_chain(self, symbol, expiry, option_type="call"):

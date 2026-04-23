@@ -105,14 +105,9 @@ class OptionsClient:
                     if not (0.005 <= pct_otm <= 0.08):
                         continue
 
-                    # Get live price from Tastytrade or IBKR
-                    if self.tt:
-                        price = self.tt.get_option_price(c.get("symbol", ""))
-                    elif self.ibkr:
-                        price = self.ibkr.get_option_price(symbol, expiry, strike, option_type)
-                    else:
-                        price = 0.0
-                    cost = price * 100
+                    # Skip price fetch here — use delta to filter, price only for winner
+                    price = 0.0
+                    cost = 0.0
                     if price <= 0 or cost <= 0:
                         continue
                     if cost > budget:
@@ -130,7 +125,17 @@ class OptionsClient:
                 if candidates:
                     # Pick candidate with delta closest to 0.40 (ideal sweet spot)
                     best = sorted(candidates, key=lambda c: abs(c.get("delta", 0.35) - 0.40))[0]
-                    log.info(f"Options {symbol}: {option_type} strike={best['strike_price']} expiry={expiry} price=${best['close_price']:.2f} delta={best.get('delta',0):.2f}")
+                    # NOW fetch price — only for the single winning contract
+                    if self.tt:
+                        best_price = self.tt.get_option_price(best.get("symbol", ""))
+                    else:
+                        best_price = 0.0
+                    best_cost = best_price * 100
+                    if best_price <= 0 or best_cost > budget:
+                        continue  # try next expiry
+                    best["close_price"] = best_price
+                    best["cost"] = best_cost
+                    log.info(f"Options {symbol}: {option_type} strike={best['strike_price']} expiry={expiry} price=${best_price:.2f} delta={best.get('delta',0):.2f}")
                     return best
 
             log.info(f"Options {symbol}: no suitable {option_type} contract found")

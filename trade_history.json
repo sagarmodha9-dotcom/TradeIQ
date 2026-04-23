@@ -73,5 +73,20 @@
     "opened_at": "2026-04-22T10:00:00",
     "closed_at": "2026-04-23T10:00:52.879309",
     "date": "2026-04-23"
+  },
+  {
+    "product_id": "PLTR",
+    "underlying": "PLTR",
+    "market": "stocks",
+    "entry_price": 146.74,
+    "exit_price": 143.47,
+    "quantity": 1,
+    "usd_value": 146.74,
+    "pnl_usd": -3.27,
+    "pnl_pct": -2.23,
+    "status": "closed_manual",
+    "opened_at": "2026-04-22T10:00:00",
+    "closed_at": "2026-04-23T12:27:11.630026",
+    "date": "2026-04-23"
   }
 ]

@@ -43,5 +43,35 @@
     "opened_at": "2026-04-22T10:15:00",
     "closed_at": "2026-04-22T12:15:00",
     "date": "2026-04-22"
+  },
+  {
+    "product_id": "BAC",
+    "underlying": "BAC",
+    "market": "stocks",
+    "entry_price": 54.71,
+    "exit_price": 53.04,
+    "quantity": 1,
+    "usd_value": 54.71,
+    "pnl_usd": -1.67,
+    "pnl_pct": -3.05,
+    "status": "closed_manual",
+    "opened_at": "2026-04-22T10:00:00",
+    "closed_at": "2026-04-23T10:00:52.879297",
+    "date": "2026-04-23"
+  },
+  {
+    "product_id": "GOOGL",
+    "underlying": "GOOGL",
+    "market": "stocks",
+    "entry_price": 339.2,
+    "exit_price": 340.08,
+    "quantity": 1,
+    "usd_value": 339.2,
+    "pnl_usd": 0.88,
+    "pnl_pct": 0.26,
+    "status": "closed_manual",
+    "opened_at": "2026-04-22T10:00:00",
+    "closed_at": "2026-04-23T10:00:52.879309",
+    "date": "2026-04-23"
   }
 ]

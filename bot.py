@@ -878,7 +878,7 @@ def main():
     _ibkr_fail_count = 0
     from options_client import OptionsClient
     from options_analyzer import OptionsAnalyzer
-    options_client   = OptionsClient(ibkr_client=None, alpaca_client=ibkr)
+    options_client   = OptionsClient(alpaca_client=ibkr)
     options_analyzer = OptionsAnalyzer()
 
 

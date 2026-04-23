@@ -7,9 +7,9 @@ from logger import log
 import config
 
 class OptionsClient:
-    def __init__(self, ibkr_client=None, alpaca_client=None):
-        self.ibkr = ibkr_client
+    def __init__(self, alpaca_client=None, ibkr_client=None):
         self.alpaca = alpaca_client
+        self.ibkr = ibkr_client
         # Use Tastytrade for options
         try:
             from tastytrade_client import TastytradeClient

@@ -162,14 +162,29 @@ class TastytradeClient:
                         limit_price = round((bid + ask) / 2, 2)
             except:
                 pass
+            # Get market price for limit order if not already fetched
+            if not limit_price:
+                try:
+                    mkt = self.get_option_price(contract_symbol.strip())
+                    if mkt and mkt > 0:
+                        limit_price = round(mkt * 1.02, 2)  # 2% above mid to ensure fill
+                except:
+                    pass
+
+            if not limit_price or limit_price <= 0:
+                log.error(f"Tastytrade: could not get price for {contract_symbol}")
+                return {"success": False, "error": "no price available"}
+
+            price_effect = "Credit" if "Sell" in action else "Debit"
             order = {
                 "time-in-force": tif,
-                "order-type": "Limit" if limit_price else "Market",
-                "price": str(limit_price) if limit_price else None,
+                "order-type": "Limit",
+                "price": str(round(limit_price, 2)),
+                "price-effect": price_effect,
                 "legs": [{
                     "instrument-type": "Equity Option",
-                    "symbol": contract_symbol,
-                    "quantity": qty,
+                    "symbol": contract_symbol.strip(),
+                    "quantity": str(qty),
                     "action": action,
                 }]
             }

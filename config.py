@@ -78,3 +78,9 @@ def get_account_balance():
     if not IS_LIVE:
         return PAPER_BALANCE
     return LIVE_ACCOUNT_BALANCE
+
+def get_daily_loss_limit_usd():
+    """Return daily loss limit in USD based on account balance."""
+    balance = LIVE_ACCOUNT_BALANCE if IS_LIVE else PAPER_BALANCE
+    return abs(balance * DAILY_LOSS_LIMIT_PCT)
+

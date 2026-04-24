@@ -964,15 +964,9 @@ def run_earnings_options_scan(options_client, ibkr):
                 with open(ep_file, "w") as f:
                     json.dump(_safe_json(played), f, indent=2)
 
-                from notifier import send_email
-                send_email(
-                    f"TradeIQ 🎯 EARNINGS PLAY — {symbol} call bought",
-                    f"Symbol:    {symbol}\n"
-                    f"Contract:  {contract_sym}\n"
-                    f"Cost:      ${cost:.2f}\n"
-                    f"Earnings:  {dte} days away\n"
-                    f"Strategy:  Buy call before earnings, close after announcement"
-                )
+                from notifier import alert_option_bought, _send
+                alert_option_bought(symbol, contract_sym, contract.get("strike_price",""), contract.get("expiration_date",""), cost, contract.get("delta",0))
+                _send(f"🎯 <b>EARNINGS PLAY — {symbol}</b>\nContract: {contract_sym}\nCost: ${cost:.2f} | Earnings in {dte} days\nDelta: {contract.get('delta',0):.3f} | Strategy: Buy call before earnings")
                 log.info(f"🎯 EARNINGS PLAY placed: {symbol} {contract_sym} cost=${cost:.2f}")
             else:
                 log.warning(f"Earnings play {symbol}: order failed")

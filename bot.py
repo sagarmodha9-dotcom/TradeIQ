@@ -816,6 +816,24 @@ def run_premarket_scan(ibkr, analyzer, stock_analyzer):
         with open("premarket_watchlist.json", "w") as f:
             import json
             json.dump(_safe_json(watchlist), f, indent=2)
+        # Send Telegram alert with top picks
+        try:
+            from notifier import _send
+            top = watchlist[:3]
+            msg = "🌅 <b>Pre-Market Picks</b>
+"
+            for w in top:
+                msg += f"
+📊 <b>{w['symbol']}</b>: {w.get('gap_pct',0):+.1f}% gap | score={w['score']}
+"
+                msg += f"   {', '.join(w.get('reasons', []))}
+"
+            msg += f"
+⏰ Market opens in {int((pre_end - now).total_seconds() / 60)} min"
+            _send(msg)
+            log.info("📱 Pre-market picks sent to Telegram")
+        except Exception as _pe:
+            log.debug(f"Pre-market Telegram error: {_pe}")
     else:
         log.info("🌅 PRE-MARKET: no high-score symbols found")
 

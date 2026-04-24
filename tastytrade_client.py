@@ -147,8 +147,20 @@ class TastytradeClient:
             url = "wss://tasty-openapi-ws.dxfeed.com/realtime"
             result = {}
             done = threading.Event()
-            # Convert contract symbol to streamer format
-            streamer_sym = sym  # Try direct first
+            # Convert contract symbol to streamer format BEFORE defining on_open
+            streamer_sym = sym
+            try:
+                import re as _re2
+                if not sym.startswith("."):
+                    parts2 = sym.replace("  "," ").split()
+                    und2 = parts2[0] if parts2 else ""
+                    m2 = _re2.search(r"(\d{6})([CP])(\d{8})", sym.replace(" ",""))
+                    if m2 and und2:
+                        sr = int(m2.group(3)) / 1000
+                        ss = str(int(sr)) if sr == int(sr) else str(sr)
+                        streamer_sym = f".{und2}{m2.group(1)}{m2.group(2)}{ss}"
+            except:
+                pass
 
             def on_open(ws):
                 ws.send(__import__('json').dumps({"type":"SETUP","channel":0,"version":"0.1","minVersion":"0.1","keepaliveTimeout":60,"acceptKeepaliveTimeout":60}))

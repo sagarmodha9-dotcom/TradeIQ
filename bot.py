@@ -573,6 +573,42 @@ def run_options_scan(options_client, options_analyzer, stock_signals, pt):
 
 def run_scan(cb, ibkr, analyzer, stock_analyzer, tm, pt, options_client=None, options_analyzer=None):
     log.info(f"\nScan @ {datetime.now().strftime('%H:%M:%S')}")
+    # Sync Alpaca positions every scan — keeps dashboard always up to date
+    try:
+        import json as _j
+        with open("bot_state.json") as _f:
+            _state = _j.load(_f)
+        _alpaca_positions = ibkr.get_positions()
+        _alpaca_syms = {p["symbol"] for p in _alpaca_positions}
+        _bot_syms = {p["product_id"] for p in _state["positions"] if p.get("market") == "stocks"}
+        _added = 0
+        for _p in _alpaca_positions:
+            if _p["symbol"] not in _bot_syms:
+                import config as _cfg
+                _entry = float(_p["avg_entry_price"])
+                _state["positions"].append({
+                    "product_id": _p["symbol"],
+                    "market": "stocks",
+                    "side": "BUY",
+                    "entry_price": _entry,
+                    "quantity": float(_p["qty"]),
+                    "usd_value": round(_entry * float(_p["qty"]), 2),
+                    "stop_loss": round(_entry * (1 - _cfg.get_sl_pct(_p["symbol"])), 4),
+                    "take_profit": round(_entry * (1 + _cfg.get_tp_pct(_p["symbol"])), 4),
+                    "confidence": 0.72,
+                    "reasoning": "Auto-synced from Alpaca",
+                    "opened_at": __import__("datetime").datetime.now().isoformat(),
+                    "pnl_usd": 0.0,
+                })
+                _added += 1
+                log.info(f"🔄 Auto-synced {_p['symbol']} from Alpaca")
+        # Remove positions no longer in Alpaca
+        _state["positions"] = [p for p in _state["positions"] 
+                               if p.get("market") != "stocks" or p.get("product_id") in _alpaca_syms]
+        with open("bot_state.json", "w") as _f:
+            _j.dump(_state, _f, indent=2)
+    except Exception as _e:
+        log.debug(f"Auto-sync error: {_e}")
     tm.monitor_positions()
     monitor_stock_positions(ibkr, pt)
     monitor_option_positions(options_client)

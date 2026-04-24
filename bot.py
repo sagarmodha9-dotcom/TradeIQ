@@ -634,7 +634,19 @@ def run_scan(cb, ibkr, analyzer, stock_analyzer, tm, pt, options_client=None, op
         for _p in _alpaca_positions:
             if _p["symbol"] not in _bot_syms:
                 import config as _cfg
+                import requests as _req, os as _os
                 _entry = float(_p["avg_entry_price"])
+                # Get real fill time from Alpaca orders
+                _opened_at = __import__("datetime").datetime.now().isoformat()
+                try:
+                    _hdrs = {"APCA-API-KEY-ID": _os.getenv("ALPACA_API_KEY"), "APCA-API-SECRET-KEY": _os.getenv("ALPACA_SECRET_KEY")}
+                    _orders = _req.get("https://api.alpaca.markets/v2/orders?status=filled&limit=20", headers=_hdrs).json()
+                    for _o in _orders:
+                        if _o.get("symbol") == _p["symbol"] and _o.get("side") == "buy" and _o.get("filled_at"):
+                            _opened_at = _o["filled_at"]
+                            break
+                except:
+                    pass
                 _state["positions"].append({
                     "product_id": _p["symbol"],
                     "market": "stocks",
@@ -646,11 +658,11 @@ def run_scan(cb, ibkr, analyzer, stock_analyzer, tm, pt, options_client=None, op
                     "take_profit": round(_entry * (1 + _cfg.get_tp_pct(_p["symbol"])), 4),
                     "confidence": 0.72,
                     "reasoning": "Auto-synced from Alpaca",
-                    "opened_at": __import__("datetime").datetime.now().isoformat(),
+                    "opened_at": _opened_at,
                     "pnl_usd": 0.0,
                 })
                 _added += 1
-                log.info(f"🔄 Auto-synced {_p['symbol']} from Alpaca")
+                log.info(f"🔄 Auto-synced {_p['symbol']} from Alpaca (opened {_opened_at})")
         # Remove positions no longer in Alpaca
         _state["positions"] = [p for p in _state["positions"] 
                                if p.get("market") != "stocks" or p.get("product_id") in _alpaca_syms]

@@ -156,26 +156,10 @@ def is_stock_market_bullish(ibkr):
         return True
 
 def get_position_size(symbol, base_size, ibkr):
-    """Adjust position size based on stock volatility."""
+    """Always return exactly base_size — fractional shares handle any price."""
     try:
-        # High volatility stocks — reduce position size
-        high_vol = ["COIN", "MSTR", "PLTR", "HOOD", "SOFI", "TSLA", "NVDA", "AMD"]
-        med_vol  = ["GOOGL", "AMZN", "META", "NFLX", "UBER", "BABA", "INTC", "DIS"]
-        low_vol  = ["AAPL", "MSFT", "SPY", "QQQ"]
-        # Ensure minimum size covers 1 whole share
-        price = ibkr.get_latest_price(symbol) if ibkr else 0
-        min_size = price * 1.05 if price > 0 else base_size
-        if symbol in high_vol:
-            size = max(min_size, base_size * 0.5)
-            log.info(f"{symbol}: HIGH volatility → ${size:.0f}")
-        elif symbol in med_vol:
-            size = max(min_size, base_size * 0.75)
-            log.info(f"{symbol}: MED volatility → ${size:.0f}")
-        else:
-            size = max(min_size, base_size)
-        # Cap at 20% of account to avoid oversizing
-        max_size = 2039 * 0.20
-        size = min(size, max_size)
+        size = base_size  # Always $200 — fractional shares handle the rest
+        log.info(f"{symbol}: position size → ${size:.0f}")
         return size
     except Exception:
         return base_size

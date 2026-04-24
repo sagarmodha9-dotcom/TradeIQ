@@ -246,6 +246,11 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
                         import time; time.sleep(1)
                         entry_price = float(fill.get("fill_price") or signal["entry_price"] or 0)
                         qty = float(fill.get("fill_quantity") or fill.get("qty") or (size_usd / entry_price if entry_price > 0 else 1))
+                        # Telegram alert for trade opened
+                        from notifier import alert_trade_opened
+                        alert_trade_opened(symbol, "BUY", entry_price, round(qty, 4),
+                            signal["stop_loss"], signal["take_profit"],
+                            signal["confidence"], "stocks")
                         positions.append({
                             "product_id":  symbol, "side": "BUY",
                             "entry_price": entry_price,

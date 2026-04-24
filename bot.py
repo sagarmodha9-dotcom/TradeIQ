@@ -251,10 +251,21 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
                     _ordered_this_scan.add(symbol)
                     fill = ibkr.place_market_order(symbol, "buy", notional=size_usd)
                     if fill and (fill.get("success") or fill.get("status") in ["filled", "partially_filled", "Filled", "accepted", "pending_new", "new"]):
-                        # Wait briefly for fill price to populate
-                        import time; time.sleep(1)
-                        entry_price = float(fill.get("fill_price") or signal["entry_price"] or 0)
-                        qty = float(fill.get("fill_quantity") or fill.get("qty") or (size_usd / entry_price if entry_price > 0 else 1))
+                        # Wait for Alpaca to fill the order and get real price
+                        import time; time.sleep(2)
+                        # Fetch real fill price from Alpaca positions
+                        try:
+                            real_positions = ibkr.get_positions()
+                            real_pos = next((p for p in real_positions if p["symbol"] == symbol), None)
+                            if real_pos and float(real_pos.get("avg_entry_price", 0)) > 0:
+                                entry_price = float(real_pos["avg_entry_price"])
+                                qty = float(real_pos["qty"])
+                            else:
+                                entry_price = float(fill.get("fill_price") or ibkr.get_latest_price(symbol) or signal["entry_price"] or 0)
+                                qty = float(size_usd / entry_price if entry_price > 0 else 1)
+                        except:
+                            entry_price = float(fill.get("fill_price") or signal["entry_price"] or 0)
+                            qty = float(size_usd / entry_price if entry_price > 0 else 1)
                         # Telegram alert for trade opened
                         from notifier import alert_trade_opened
                         alert_trade_opened(symbol, "BUY", entry_price, round(qty, 4),

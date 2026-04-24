@@ -940,6 +940,16 @@ def main():
             with open("bot_state.json", "w") as f:
                 json.dump(state, f, indent=2)
             log.info(f"✅ Alpaca sync: {before} → {after} stock positions ({len(ibkr_symbols)} in Alpaca)")
+            # Alert on Telegram for any newly synced positions
+            new_positions = [p for p in state["positions"] if p.get("market") == "stocks" and p.get("reasoning") == "Synced from Alpaca on startup"]
+            for p in new_positions:
+                sym = p["product_id"]
+                entry = p["entry_price"]
+                tp = p["take_profit"]
+                sl = p["stop_loss"]
+                from notifier import _send
+                _send(f"🔄 SYNCED POSITION: {sym}\nEntry: ${entry:.2f}\nTP: ${tp:.2f} | SL: ${sl:.2f}\nSource: Alpaca startup sync")
+                log.info(f"📱 Telegram alert sent for synced position: {sym}")
         except Exception as e:
             log.error(f"Alpaca startup sync error: {e}")
 

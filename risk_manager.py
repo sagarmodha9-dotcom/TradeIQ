@@ -152,11 +152,23 @@ def get_vix():
         pass
     return _vix_cache["value"] or 20.0
 
+_vix_alerted = False
+
 def is_high_volatility():
+    global _vix_alerted
     vix = get_vix()
     if vix > config.MAX_VIX:
         log.warning(f"High volatility: VIX={vix:.1f} > {config.MAX_VIX}")
+        if not _vix_alerted:
+            try:
+                from notifier import _send
+                _send(f"⚠️ <b>HIGH VOLATILITY ALERT</b>\nVIX: {vix:.1f} (limit: {config.MAX_VIX})\nBot pausing new entries until VIX drops below {config.MAX_VIX}")
+                _vix_alerted = True
+            except:
+                pass
         return True
+    else:
+        _vix_alerted = False  # Reset when VIX normalizes
     return False
 
 def calculate_position_size(symbol, account_balance):

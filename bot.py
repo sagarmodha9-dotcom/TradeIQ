@@ -251,9 +251,11 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
                         avail_cash = base_size
                     size_usd = get_position_size(symbol, base_size, ibkr)
                     fill = ibkr.place_market_order(symbol, "buy", notional=size_usd)
-                    if fill and fill.get("status") in ["filled", "partially_filled", "Filled"]:
-                        entry_price = float(signal["entry_price"] or 0)
-                        qty = fill.get("qty", 1)
+                    if fill and (fill.get("success") or fill.get("status") in ["filled", "partially_filled", "Filled", "accepted", "pending_new", "new"]):
+                        # Wait briefly for fill price to populate
+                        import time; time.sleep(1)
+                        entry_price = float(fill.get("fill_price") or signal["entry_price"] or 0)
+                        qty = float(fill.get("fill_quantity") or fill.get("qty") or (size_usd / entry_price if entry_price > 0 else 1))
                         positions.append({
                             "product_id":  symbol, "side": "BUY",
                             "entry_price": entry_price,

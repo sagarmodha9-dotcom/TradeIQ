@@ -820,14 +820,10 @@ def run_premarket_scan(ibkr, analyzer, stock_analyzer):
         try:
             from notifier import _send
             top = watchlist[:3]
-            msg = "🌅 <b>Pre-Market Picks</b>
-"
+            msg = "🌅 <b>Pre-Market Picks</b>\n"
             for w in top:
-                msg += f"
-📊 <b>{w['symbol']}</b>: {w.get('gap_pct',0):+.1f}% gap | score={w['score']}
-"
-                msg += f"   {', '.join(w.get('reasons', []))}
-"
+                msg += f"\n📊 <b>{w['symbol']}</b>: {w.get('gap_pct',0):+.1f}% gap | score={w['score']}\n"
+                msg += f"   {', '.join(w.get('reasons', []))}\n"
             msg += f"
 ⏰ Market opens in {int((pre_end - now).total_seconds() / 60)} min"
             _send(msg)

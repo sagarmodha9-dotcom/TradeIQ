@@ -117,37 +117,61 @@ class TastytradeClient:
             return []
 
     def get_option_price(self, contract_symbol):
-        """Get current market price of an option contract via Tastytrade API."""
+        """Get current market price via DXFeed websocket — works during and after hours."""
         try:
-            # Use Tastytrade market data endpoint
             sym = contract_symbol.strip()
-            sym_encoded = sym.replace("  ", " ")  # fix double space
-            data = self._request("GET", f"/market-data/options?symbols[]={sym_encoded}")
-            if data and "data" in data:
-                items = data["data"].get("items", [])
-                for item in items:
-                    bid = float(item.get("bid", 0) or 0)
-                    ask = float(item.get("ask", 0) or 0)
-                    mid = (bid + ask) / 2 if bid and ask else 0
-                    if mid > 0:
-                        return mid
-            # Fallback — use option chain nested data
-            parts = sym.replace("  ", " ").split()
-            if parts:
-                underlying = parts[0]
-                data2 = self._request("GET", f"/option-chains/{underlying}/nested")
-                if data2 and "data" in data2:
-                    items = data2["data"].get("items", [])
-                    for exp_group in items:
-                        for exp in exp_group.get("expirations", []):
-                            for strike in exp.get("strikes", []):
-                                for side in ["call", "put"]:
-                                    if strike.get(side, "").strip() == sym:
-                                        price = float(strike.get("close-price", 0) or 0)
-                                        if price > 0:
-                                            return price
+            # Get streamer symbol from contract
+            parts = sym.replace("  "," ").split()
+            underlying = parts[0] if parts else ""
+            # Try DXFeed Quote first
+            import websocket, threading, time as _time
+            token_resp = self._request("GET", "/api-quote-tokens")
+            token = token_resp.get("data", {}).get("token", "")
+            if not token:
+                return 0.0
+            url = "wss://tasty-openapi-ws.dxfeed.com/realtime"
+            result = {}
+            done = threading.Event()
+            # Convert contract symbol to streamer format
+            streamer_sym = sym  # Try direct first
+
+            def on_open(ws):
+                ws.send(__import__('json').dumps({"type":"SETUP","channel":0,"version":"0.1","minVersion":"0.1","keepaliveTimeout":60,"acceptKeepaliveTimeout":60}))
+                ws.send(__import__('json').dumps({"type":"AUTH","channel":0,"token":token}))
+                ws.send(__import__('json').dumps({"type":"CHANNEL_REQUEST","channel":1,"service":"FEED","parameters":{"contract":"AUTO"}}))
+                ws.send(__import__('json').dumps({"type":"FEED_SETUP","channel":1,"acceptAggregationPeriod":10,"acceptDataFormat":"COMPACT",
+                    "acceptEventFields":{"Quote":["eventType","eventSymbol","bidPrice","askPrice"]}}))
+                ws.send(__import__('json').dumps({"type":"FEED_SUBSCRIPTION","channel":1,"reset":True,
+                    "add":[{"type":"Quote","symbol":streamer_sym}]}))
+
+            def on_message(ws, msg):
+                data = __import__('json').loads(msg)
+                if data.get("type") == "FEED_DATA":
+                    fields = data.get("data",[])
+                    if fields and len(fields) >= 2:
+                        values = fields[1]
+                        if isinstance(values, list) and len(values) >= 4:
+                            bid = float(values[2] or 0)
+                            ask = float(values[3] or 0)
+                            if bid > 0 and ask > 0:
+                                result["price"] = round((bid + ask) / 2, 4)
+                            elif ask > 0:
+                                result["price"] = ask
+                    ws.close()
+                    done.set()
+
+            def on_error(ws, err):
+                done.set()
+
+            ws_app = websocket.WebSocketApp(url, on_open=on_open, on_message=on_message, on_error=on_error)
+            t = threading.Thread(target=ws_app.run_forever)
+            t.daemon = True
+            t.start()
+            done.wait(timeout=8)
+            if result.get("price", 0) > 0:
+                return result["price"]
         except Exception as e:
-            pass
+            log.debug(f"get_option_price {contract_symbol}: {e}")
         return 0.0
 
     

@@ -183,6 +183,8 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
                 existing_positions.append({"product_id": sym, "market": "stocks"})
     except Exception:
         alpaca_syms = set()
+    # In-memory lock — track symbols ordered this scan cycle
+    _ordered_this_scan = set()
     if not ibkr.is_market_open():
         log.info("── Stock market closed — skipping")
         return [], []
@@ -210,6 +212,9 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
                     if symbol in existing_syms:
                         log.info(f"{symbol}: already have open position — skipping")
                         continue
+                    if symbol in _ordered_this_scan:
+                        log.info(f"{symbol}: already ordered this scan — skipping")
+                        continue
                     # News sentiment filter
                     signal = news_sentiment.adjust_signal_for_news(symbol, signal)
                     if not signal:
@@ -234,6 +239,7 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
                     except:
                         avail_cash = base_size
                     size_usd = get_position_size(symbol, base_size, ibkr)
+                    _ordered_this_scan.add(symbol)
                     fill = ibkr.place_market_order(symbol, "buy", notional=size_usd)
                     if fill and (fill.get("success") or fill.get("status") in ["filled", "partially_filled", "Filled", "accepted", "pending_new", "new"]):
                         # Wait briefly for fill price to populate

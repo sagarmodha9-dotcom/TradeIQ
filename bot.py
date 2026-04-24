@@ -190,6 +190,15 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
         existing_positions = [p for p in existing.get("positions", []) if p.get("market") == "stocks"]
     except Exception:
         existing_positions = []
+    # Also check live Alpaca positions to prevent duplicate entries
+    try:
+        alpaca_positions = ibkr.get_positions()
+        alpaca_syms = {p["symbol"] for p in alpaca_positions}
+        for sym in alpaca_syms:
+            if not any(p.get("product_id") == sym for p in existing_positions):
+                existing_positions.append({"product_id": sym, "market": "stocks"})
+    except Exception:
+        alpaca_syms = set()
     if not ibkr.is_market_open():
         log.info("── Stock market closed — skipping")
         return [], []

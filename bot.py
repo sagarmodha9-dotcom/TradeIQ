@@ -824,8 +824,7 @@ def run_premarket_scan(ibkr, analyzer, stock_analyzer):
             for w in top:
                 msg += f"\n📊 <b>{w['symbol']}</b>: {w.get('gap_pct',0):+.1f}% gap | score={w['score']}\n"
                 msg += f"   {', '.join(w.get('reasons', []))}\n"
-            msg += f"
-⏰ Market opens in {int((pre_end - now).total_seconds() / 60)} min"
+            msg += f"\n⏰ Market opens in {int((pre_end - now).total_seconds() / 60)} min"
             _send(msg)
             log.info("📱 Pre-market picks sent to Telegram")
         except Exception as _pe:

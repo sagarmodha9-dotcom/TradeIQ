@@ -476,6 +476,9 @@ def monitor_option_positions(options_client):
                             with open("bot_state.json", "w") as _f:
                                 import json as _j
                                 _j.dump(state, _f, indent=2, default=str)
+                            # Telegram alert for option closed
+                            from notifier import alert_option_closed
+                            alert_option_closed(p.get("underlying", p["product_id"]), p["product_id"], pnl, reason)
                             log.info(f"OPTIONS AUTO-CLOSED: {p['product_id']} {pnl_pct:.1f}% ({reason})")
 
                         if pnl_pct >= tp_threshold and not p.get("alerted_tp"):
@@ -489,11 +492,8 @@ def monitor_option_positions(options_client):
                                     p["cost_basis_recovered"] = True
                                     new_tp = tp_threshold * 2  # let rest run to 2x
                                     log.info(f"💰 LADDER: sold half {p['product_id']} at +{pnl_pct:.1f}% — letting rest ride to +{new_tp:.0f}%")
-                                    from notifier import send_email
-                                    send_email(
-                                        f"TradeIQ 💰 LADDER — {p['product_id']} half closed +{pnl_pct:.1f}%",
-                                        f"Sold 1 contract at +{pnl_pct:.1f}% (${pnl/2:.2f} profit)\nLetting remaining contract ride free to +{new_tp:.0f}%\nCost basis fully recovered."
-                                    )
+                                    from notifier import _send
+                                    _send(f"💰 <b>LADDER — {p['product_id']}</b>\nSold half at +{pnl_pct:.1f}% (${pnl/2:.2f} profit)\nLetting rest ride to +{new_tp:.0f}%\nCost basis recovered!")
                                 except Exception as le:
                                     log.error(f"Ladder sell error: {le}")
                                     alert_trade_closed(p["product_id"], "BUY", p["entry_price"], current, pnl, pnl_pct, "options_tp", "options")

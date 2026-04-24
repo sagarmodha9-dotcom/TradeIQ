@@ -1146,8 +1146,10 @@ function renderHPos(pos){
         <div style="width:100%;background:var(--bg3);border-radius:4px;height:4px;overflow:hidden">
           <div style="width:${progress}%;background:${barColor};height:100%;border-radius:4px;transition:width .3s"></div>
         </div>
-        <div style="display:flex;justify-content:space-between;font-size:8px;color:var(--text3);font-family:var(--mono)">
-          <span>SL $${fmt(sl)}</span><span style="color:${barColor}">${Math.round(progress)}% to TP</span><span>TP $${fmt(tp)}</span>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:8px;color:var(--text3);font-family:var(--mono);margin-top:3px;padding:0 2px">
+          <span style="color:var(--red)">SL $${fmt(sl)}</span>
+          <span style="background:${barColor}22;color:${barColor};padding:1px 6px;border-radius:3px;font-weight:700">${Math.round(progress)}% to TP</span>
+          <span style="color:var(--green)">TP $${fmt(tp)}</span>
         </div>
       </div>`;
     }).join('');

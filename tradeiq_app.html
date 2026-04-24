@@ -234,6 +234,40 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 .empty-msg{padding:20px;text-align:center;color:var(--text3);font-size:11px;line-height:1.7;font-family:var(--mono)}
 @keyframes fu{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}
 .fu{animation:fu .2s ease}
+
+@media (max-width: 768px) {
+  html,body{overflow:auto}
+  .app{grid-template-columns:1fr;height:auto;min-height:100vh}
+  .nav{flex-direction:row;height:52px;width:100%;border-right:none;border-top:1px solid var(--border);padding:0 8px;gap:2px;position:fixed;bottom:0;left:0;z-index:100;justify-content:space-around}
+  .nav::after{display:none}
+  .nbtn{width:36px;height:36px;font-size:16px}
+  .ntip{display:none}
+  .content{padding-bottom:60px}
+  .page{padding:12px}
+  /* Risk monitor fixes */
+  #kill-panel{padding:12px}
+  #kill-panel .rm-grid{grid-template-columns:1fr 1fr;gap:8px}
+  #rm-tags{flex-wrap:nowrap;gap:4px}
+  #rm-tags span{font-size:9px;padding:2px 6px;white-space:nowrap}
+  /* Hero section */
+  .hero{padding:16px}
+  .hdr-greet{font-size:20px}
+  /* Stock/options cards */
+  .hsc-wrap{grid-template-columns:1fr 1fr;gap:8px}
+  /* Stats row */
+  .sc-grid{grid-template-columns:1fr 1fr;gap:8px}
+  /* Positions */
+  .pos-grid{grid-template-columns:1fr}
+  /* Chart height */
+  .hchart-wrap{height:140px}
+  /* Remove sidebar spacing */
+  .page-inner{padding:12px 12px 70px 12px}
+}
+@media (max-width: 390px) {
+  .hdr-greet{font-size:18px}
+  #htotal{font-size:28px}
+  .hero{padding:12px}
+}
 </style>
 </head>
 <body>

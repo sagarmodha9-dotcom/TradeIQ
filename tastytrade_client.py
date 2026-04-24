@@ -120,9 +120,24 @@ class TastytradeClient:
         """Get current market price via DXFeed websocket — works during and after hours."""
         try:
             sym = contract_symbol.strip()
-            # Get streamer symbol from contract
-            parts = sym.replace("  "," ").split()
-            underlying = parts[0] if parts else ""
+            # Auto-convert contract symbol to streamer format if needed
+            # e.g. "SOFI  260522C00019000" -> ".SOFI260522C19"
+            streamer_sym = sym
+            if not sym.startswith("."):
+                try:
+                    import re
+                    parts = sym.replace("  "," ").split()
+                    underlying = parts[0] if parts else ""
+                    m = re.search(r"(\d{6})([CP])(\d{8})", sym.replace(" ",""))
+                    if m and underlying:
+                        date_str = m.group(1)
+                        cp = m.group(2)
+                        strike_raw = int(m.group(3))
+                        strike = strike_raw / 1000
+                        strike_str = str(int(strike)) if strike == int(strike) else str(strike)
+                        streamer_sym = f".{underlying}{date_str}{cp}{strike_str}"
+                except:
+                    streamer_sym = sym
             # Try DXFeed Quote first
             import websocket, threading, time as _time
             token_resp = self._request("GET", "/api-quote-tokens")

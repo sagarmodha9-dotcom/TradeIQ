@@ -206,7 +206,16 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
                     "risk_reward": signal.get("risk_reward", 2.0),
                     "reasoning":   signal.get("reasoning", ""), "market": "stocks",
                 })
-                if signal["action"] == "BUY" and signal["confidence"] >= config.MIN_CONFIDENCE and symbol not in _trade_cooldown:
+                # 2 minute cooldown after TP/SL — prevents buying right at peak
+                _cooldown_active = False
+                if symbol in _trade_cooldown:
+                    elapsed = (datetime.now() - _trade_cooldown[symbol]).total_seconds()
+                    if elapsed < 120:  # 2 minutes
+                        _cooldown_active = True
+                        log.info(f"{symbol}: cooldown active ({120-elapsed:.0f}s remaining)")
+                    else:
+                        del _trade_cooldown[symbol]  # cooldown expired
+                if signal["action"] == "BUY" and signal["confidence"] >= config.MIN_CONFIDENCE and not _cooldown_active:
                     # Skip if already have open position in this symbol
                     existing_syms = [p.get("product_id") for p in existing_positions]
                     if symbol in existing_syms:

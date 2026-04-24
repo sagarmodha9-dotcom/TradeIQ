@@ -314,6 +314,30 @@ def monitor_stock_positions(ibkr, pt):
                         pos["stop_loss"] = breakeven_sl
                         sl = breakeven_sl
                         log.info(f"🔒 BREAKEVEN SL {symbol} → ${breakeven_sl:.2f} (price=${current:.2f} +{pnl_pct:.1f}%)")
+                # Time-based exit — if open 4+ hours and up 3%+, take profit
+                try:
+                    opened_at = pos.get("opened_at")
+                    if opened_at:
+                        from datetime import datetime as _dt
+                        opened_time = _dt.fromisoformat(opened_at.replace("Z",""))
+                        hours_open = (_dt.now() - opened_time).total_seconds() / 3600
+                        if hours_open >= 4 and pnl_pct >= 3.0:
+                            log.info(f"⏰ TIME EXIT {symbol} @ ${current:.2f} — open {hours_open:.1f}hrs +{pnl_pct:.1f}% — taking profit")
+                            ibkr.place_market_order(symbol, "sell", qty=float(pos["quantity"]))
+                            from trade_history import save_trade
+                            save_trade({"product_id": symbol, "side": "BUY", "entry_price": entry,
+                                "exit_price": current, "pnl_usd": round(pnl, 4),
+                                "pnl_pct": round(pnl_pct, 2), "status": "closed_time_exit",
+                                "market": "stocks", "confidence": pos.get("confidence", 0),
+                                "opened_at": pos.get("opened_at"), "closed_at": datetime.now().isoformat()})
+                            pt.record_stock_trade(round(pnl, 4), win=True)
+                            from notifier import alert_trade_closed
+                            alert_trade_closed(symbol, "BUY", entry, current, pnl, pnl_pct, "closed_time_exit", "stocks")
+                            closed.append(symbol)
+                            continue
+                except Exception as _te:
+                    log.debug(f"Time exit check error: {_te}")
+
                 if current <= sl:
                     log.info(f"❌ STOCK SL HIT {symbol} @ ${current:.2f} PnL: ${pnl:.2f}")
                     _trade_cooldown[symbol] = datetime.now()

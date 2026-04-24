@@ -1047,7 +1047,32 @@ function renderHome(d,cp,sp,total,cpnl,spnl,tpnl){
   document.getElementById('hbotstatus').textContent='● Active';document.getElementById('hbotstatus').className='sc-val up';
   document.getElementById('hbotsub').textContent='Scanning 26 markets';
   document.getElementById('hchartts').textContent='Updated '+now();
-  if(hChart){hChart.data.labels=ph.total.map(p=>p.t);hChart.data.datasets[0].data=ph.options.map(p=>p.v);hChart.data.datasets[1].data=ph.stocks.map(p=>p.v);hChart.data.datasets[2].data=ph.total.map(p=>p.v);hChart.update('none');}
+  if(hChart){
+    hChart.data.labels=ph.total.map(p=>p.t);
+    hChart.data.datasets[0].data=ph.options.map(p=>p.v);
+    hChart.data.datasets[1].data=ph.stocks.map(p=>p.v);
+    hChart.data.datasets[2].data=ph.total.map(p=>p.v);
+    // Add individual position P&L lines
+    if(lastD && lastD.open_positions){
+      const pos = lastD.open_positions.filter(p=>p.market==='stocks');
+      const colors = ['#f59e0b','#60a5fa','#f472b6','#34d399'];
+      // Remove old position datasets (keep first 3)
+      hChart.data.datasets = hChart.data.datasets.slice(0,3);
+      pos.forEach((p,i)=>{
+        const pnl = parseFloat(p.pnl_usd||0);
+        hChart.data.datasets.push({
+          label: p.product_id,
+          data: hChart.data.labels.map(()=>null).concat([pnl]),
+          borderColor: colors[i%colors.length],
+          borderWidth: 1,
+          pointRadius: 3,
+          fill: false,
+          tension: 0.3
+        });
+      });
+    }
+    hChart.update('none');
+  }
   renderHPos(op);renderHTrades(d.closed_trades||d.recent_trades||[]);renderNews(d.last_signals||[]);
 }
 function parseOptContract(pid){

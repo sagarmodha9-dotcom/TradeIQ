@@ -95,6 +95,24 @@ def run_briefing():
     msg += "\n\n📈 <b>Open Positions</b>" + positions_text
     msg += "\n\n⚡ <b>Earnings This Week</b>\n" + earnings_str
     msg += premarket_text
+    # Overnight BUY signals
+    overnight_text = ""
+    try:
+        import json as _j2, os as _os2
+        if _os2.path.exists("bot_state.json"):
+            with open("bot_state.json") as _f2:
+                _state = _j2.load(_f2)
+            signals = _state.get("signals", [])
+            buys = [s for s in signals if s.get("action") == "BUY"]
+            if buys:
+                overnight_text = "\n\n🔍 <b>Top BUY Signals</b>"
+                for s in sorted(buys, key=lambda x: x.get("confidence",0), reverse=True)[:5]:
+                    conf = round(s.get("confidence",0)*100)
+                    overnight_text += "\n  📈 " + s.get("product_id","") + ": " + str(conf) + "% conf"
+    except:
+        pass
+
+    msg += overnight_text
     msg += "\n\n🎯 Bot is LIVE and scanning 26 symbols"
 
     send(msg)

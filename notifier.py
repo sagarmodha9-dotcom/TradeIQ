@@ -52,15 +52,13 @@ def alert_kill_switch(reason, daily_pnl):
 
 def alert_daily_summary(total, crypto, stocks, tpnl, wins, losses):
     total_trades = wins + losses
-    wr = f"{wins/total_trades*100:.0f}%" if total_trades > 0 else "—"
+    wr = str(round(wins/total_trades*100)) + "%" if total_trades > 0 else "—"
     sign = "+" if tpnl >= 0 else ""
     emoji = "🟢" if tpnl >= 0 else "🔴"
-    
-    # Build individual trade list
     trades_text = ""
     try:
-        from trade_history import get_daily_summary
-        summary = get_daily_summary()
+        from trade_history import get_daily_summary as _gds
+        summary = _gds()
         trades = summary.get("trades", [])
         if trades:
             for t in trades:
@@ -75,17 +73,11 @@ def alert_daily_summary(total, crypto, stocks, tpnl, wins, losses):
             trades_text = "\n  No closed trades today"
     except:
         trades_text = "\n  No trade data available"
-    
-    msg = f"{emoji} <b>Daily Summary — {__import__('datetime').datetime.now().strftime('%b %d')}</b>"
-    msg += f"
-Portfolio: ${total:,.2f}"
-    msg += f"
-P&L: <b>{sign}${tpnl:.2f}</b>"
-    msg += f"
-Trades: {wins}W / {losses}L | Win Rate: {wr}"
-    msg += f"
-
-📋 <b>Today's Trades:</b>{trades_text}"
+    msg = emoji + " <b>Daily Summary</b>"
+    msg += "\nPortfolio: $" + str(round(total,2))
+    msg += "\nP&L: <b>" + sign + "$" + str(round(tpnl,2)) + "</b>"
+    msg += "\nTrades: " + str(wins) + "W / " + str(losses) + "L | Win Rate: " + wr
+    msg += "\n\n📋 <b>Today's Trades:</b>" + trades_text
     _send(msg)
 
 def send_weekly_report():

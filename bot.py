@@ -1011,17 +1011,32 @@ def main():
         except Exception as e:
             log.error(f"Scan error: {e}", exc_info=True)
         if args.once or not _running: break
-        # Weekly report — every Friday after market close
+        # Daily summary + weekly report — fire once at 4 PM using a flag
         try:
             from datetime import datetime
             import pytz
             now_et = datetime.now(pytz.timezone("US/Eastern"))
-            if now_et.weekday() == 4 and now_et.hour == 16 and now_et.minute < 6:
-                from notifier import send_weekly_report
-                send_weekly_report()
-                log.info("📊 Weekly report sent")
+            if now_et.hour == 16 and now_et.minute == 0:
+                # Daily summary — once at exactly 4:00 PM
+                from notifier import alert_daily_summary
+                from trade_history import get_daily_summary
+                summary = get_daily_summary()
+                acct = ibkr.get_account()
+                total = float(acct.get("portfolio_value", 0))
+                alert_daily_summary(
+                    total, 0, total,
+                    summary.get("total_pnl", 0),
+                    summary.get("wins", 0),
+                    summary.get("losses", 0)
+                )
+                log.info("📊 Daily summary sent")
+                # Weekly report — only on Fridays
+                if now_et.weekday() == 4:
+                    from notifier import send_weekly_report
+                    send_weekly_report()
+                    log.info("📊 Weekly report sent")
         except Exception as _we:
-            log.error(f"Weekly report error: {_we}")
+            log.error(f"Daily/weekly report error: {_we}")
         log.info(f"Next scan in {config.SCAN_INTERVAL}s. Ctrl+C to stop.\n")
         for _ in range(config.SCAN_INTERVAL):
             if not _running: break

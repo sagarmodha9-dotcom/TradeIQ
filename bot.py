@@ -240,14 +240,16 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
                     if not ok:
                         log.info(f"[BLOCKED] {symbol}: {reason}")
                         continue
-                    size_usd = get_position_size(symbol, pt.stock_balance * config.MAX_POSITION_PCT, ibkr)
-                    # Check Alpaca has enough cash before ordering
+                    # Always size based on TOTAL account balance, capped at available cash
+                    base_size = config.LIVE_ACCOUNT_BALANCE * config.MAX_POSITION_PCT
                     try:
                         avail_cash = ibkr.get_cash_balance()
-                        if avail_cash < size_usd:
-                            log.warning(f"[BLOCKED] {symbol}: insufficient cash ${avail_cash:.0f} < ${size_usd:.0f}")
+                        if avail_cash < base_size:
+                            log.warning(f"[BLOCKED] {symbol}: insufficient cash ${avail_cash:.0f} < ${base_size:.0f}")
                             continue
-                    except: pass
+                    except:
+                        avail_cash = base_size
+                    size_usd = get_position_size(symbol, base_size, ibkr)
                     fill = ibkr.place_market_order(symbol, "buy", notional=size_usd)
                     if fill and fill.get("status") in ["filled", "partially_filled", "Filled"]:
                         entry_price = float(signal["entry_price"] or 0)

@@ -236,6 +236,41 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 .fu{animation:fu .2s ease}
 
 @media (max-width: 768px) {
+  .content-inner, .page{overflow-x:hidden}
+  /* Fix side by side sections — stack them */
+  .two-col, .split, [style*="display:grid"]{grid-template-columns:1fr !important}
+  .pos-trades-wrap{display:flex;flex-direction:column;gap:12px}
+  /* Full width cards */
+  .card, .sc, .hsc{width:100% !important;min-width:0 !important}
+  .hgrid{display:flex !important;flex-direction:column !important;gap:12px !important}
+  .sc-grid{display:grid !important;grid-template-columns:1fr 1fr !important;gap:8px !important}
+  .srow{display:grid !important;grid-template-columns:1fr 1fr !important;gap:8px !important}
+  .sc{padding:10px 12px !important;min-width:0 !important}
+  .sc-lbl{font-size:9px !important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sc-val{font-size:16px !important}
+  .sc-sub{font-size:9px !important}
+  .sc{padding:10px 12px !important}
+  .sc-lbl{font-size:9px !important}
+  .sc-val{font-size:18px !important}
+  .sc-sub{font-size:9px !important}
+  .hgrid .hcard{width:100% !important}
+  .hcard{padding:12px 14px !important}
+  #hpositions, #hpositions > div{width:100% !important;overflow:visible !important}
+  #hpositions > div > div{width:100% !important;box-sizing:border-box !important}
+  .hsc-wrap{display:flex !important;flex-direction:column !important;gap:8px !important}
+  .hsc{width:100% !important;min-width:0 !important}
+  .hero-split{display:flex !important;flex-direction:column !important;gap:8px !important}
+  .hsc-val{font-size:20px !important}
+  .srow{display:grid !important;grid-template-columns:1fr 1fr !important;gap:8px !important}
+  .sc{padding:10px 12px !important;min-width:0 !important}
+  .sc-lbl{font-size:9px !important}
+  .sc-val{font-size:16px !important}
+  .sc-sub{font-size:9px !important}
+  .hero-val{font-size:32px !important}
+  .hdr-greet{font-size:20px !important;white-space:nowrap}
+  .hdr-sub{font-size:11px !important;white-space:nowrap}
+  /* Fix position card details — 2x2 grid */
+  .pos-details{display:grid !important;grid-template-columns:1fr 1fr !important;gap:6px !important}
   html,body{overflow:auto}
   .app{grid-template-columns:1fr;height:auto;min-height:100vh}
   .nav{flex-direction:row;height:52px;width:100%;border-right:none;border-top:1px solid var(--border);padding:0 8px;gap:2px;position:fixed;bottom:0;left:0;z-index:100;justify-content:space-around}
@@ -1060,7 +1095,7 @@ function renderHPos(pos){
             <div style="font-size:9px;color:var(--text3);font-family:var(--mono)">${conf}% conf</div>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;width:100%;max-width:100%;overflow:hidden">
           <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 8px">
             <div style="font-size:7px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;font-family:var(--mono);margin-bottom:2px">Strike</div>
             <div style="font-size:12px;font-weight:700;color:${typeColor}">$${parsed?.strike||'—'}</div>

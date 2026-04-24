@@ -342,6 +342,17 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         qs     = parse_qs(parsed.query)
         path   = parsed.path
+        if path == "/" or path == "/dashboard":
+            try:
+                with open("/Users/sagarmodha/tradeiq/tradeiq_app.html", "r") as f:
+                    html = f.read()
+                self.send_response(200)
+                self.send_header("Content-type", "text/html")
+                self.end_headers()
+                self.wfile.write(html.encode())
+            except Exception as e:
+                self._json({"error": str(e)}, 500)
+            return
         if path == "/status":
             self._json(get_status())
         elif path == "/health":

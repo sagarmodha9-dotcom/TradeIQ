@@ -70,14 +70,11 @@ def alert_daily_summary(total, crypto, stocks, tpnl, wins, losses):
                 t_sign = "+" if pnl >= 0 else ""
                 t_emoji = "✅" if pnl >= 0 else "❌"
                 status_str = "TP" if "tp" in status else "SL" if "sl" in status else "Manual"
-                trades_text += f"
-  {t_emoji} {sym}: {t_sign}${pnl:.2f} ({status_str})"
+                trades_text += "\n  " + t_emoji + " " + sym + ": " + t_sign + "$" + str(round(pnl,2)) + " (" + status_str + ")"
         else:
-            trades_text = "
-  No closed trades today"
+            trades_text = "\n  No closed trades today"
     except:
-        trades_text = "
-  No trade data available"
+        trades_text = "\n  No trade data available"
     
     msg = f"{emoji} <b>Daily Summary — {__import__('datetime').datetime.now().strftime('%b %d')}</b>"
     msg += f"

@@ -73,3 +73,6 @@ Options: {len(options)}/4
 
 if __name__ == "__main__":
     run_briefing()
+
+# Alias for compatibility
+send_morning_briefing = run_briefing

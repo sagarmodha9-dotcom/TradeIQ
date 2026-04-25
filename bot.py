@@ -929,8 +929,8 @@ def run_earnings_options_scan(options_client, ibkr):
                 log.info(f"Earnings play {symbol}: delta {delta:.3f} outside 0.35-0.50 range — skip")
                 continue
 
-            # Theta decay must not exceed $15/day (theta is per share, x100)
-            if theta < -0.15:
+            # Theta decay must not exceed $35/day for earnings plays (short hold period)
+            if theta < -0.35:
                 log.info(f"Earnings play {symbol}: theta {theta:.3f} too negative (>${abs(theta)*100:.1f}/day decay) — skip")
                 continue
 

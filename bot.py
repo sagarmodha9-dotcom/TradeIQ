@@ -861,6 +861,10 @@ def run_earnings_options_scan(options_client, ibkr):
     if not options_client or not options_client.tt:
         return
 
+    # Only place orders during market hours
+    if not ibkr.is_market_open():
+        return
+
     # Load already-placed earnings plays
     ep_file = "earnings_plays.json"
     played = {}

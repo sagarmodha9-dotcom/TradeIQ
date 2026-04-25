@@ -946,6 +946,11 @@ def run_earnings_options_scan(options_client, ibkr):
             log.info(f"Earnings play {symbol}: Greeks OK — delta={delta:.3f} theta={theta:.3f} iv={iv:.1%}")
 
             fill = options_client.place_option_order(contract.get("symbol",""), qty=1, side="buy")
+            if fill and fill.get("success") and not fill.get("paper") and fill.get("order_id"):
+                # Verify order actually went through by checking it's not a failed response
+                if isinstance(fill.get("order_id",""), str) and len(fill.get("order_id","")) < 5:
+                    log.warning(f"Earnings play {symbol}: order response suspicious — skipping save")
+                    continue
             if fill and fill.get("success"):
                 cost = float(contract.get("close_price", 0)) * 100
                 contract_sym = contract.get("symbol", "")

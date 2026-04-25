@@ -914,7 +914,7 @@ def run_earnings_options_scan(options_client, ibkr):
                 available_bp = tt_bp * 0.85  # use max 85% of buying power
             except:
                 available_bp = 500
-            contract = options_client.find_best_option(symbol, "call", budget=min(1000, available_bp))
+            contract = options_client.find_best_option(symbol, "call", budget=min(1000, available_bp * 1.15))  # use full balance for earnings plays
             if not contract:
                 log.info(f"Earnings play {symbol}: no suitable contract found")
                 continue

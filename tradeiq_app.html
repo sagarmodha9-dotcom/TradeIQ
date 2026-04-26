@@ -348,9 +348,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
   <button class="nbtn" onclick="goPage('terminal')" id="nav-terminal">⌨<span class="ntip">Terminal</span></button>
   <button class="nbtn" onclick="goPage('forecast')" id="nav-forecast">🔮<span class="ntip">Forecast</span></button>
   <button class="nbtn" onclick="goPage('history')" id="nav-history">📋<span class="ntip">History</span></button>
-  <button class="nbtn" onclick="goPage('analytics')" id="nav-analytics">📊<span class="ntip">Analytics</span></button>
+  <button class="nbtn" onclick="goPage('analytics');loadAnalytics();" id="nav-analytics">📊<span class="ntip">Analytics</span></button>
   <button class="nbtn" onclick="goPage('intelligence')" id="nav-intelligence">🧠<span class="ntip">Intelligence</span></button>
-  <button class="nbtn" onclick="goPage('signals')" id="nav-signals">🔍<span class="ntip">Signals</span></button>
+  <button class="nbtn" onclick="goPage('signals');loadSignals();" id="nav-signals">🔍<span class="ntip">Signals</span></button>
   <div class="nsp"></div>
   <div class="nconn" id="nconn"></div>
 </div>
@@ -827,20 +827,6 @@ setInterval(rmFetch, 15000);
   </div>
 </div>
 </div>
-  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px 24px;margin-bottom:18px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-      <div style="font-size:13px;font-weight:500;">Win rate by symbol</div>
-      <div id="an-weak-badge" style="display:none;font-size:10px;padding:2px 8px;border-radius:4px;background:var(--rbg);color:var(--red);border:1px solid var(--rbdr);font-family:var(--mono);">weak</div>
-    </div>
-    <div id="an-winrate-list" style="display:flex;flex-direction:column;gap:8px;"><div style="font-size:12px;color:var(--text3);">Loading...</div></div>
-  </div>
-  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px 24px;">
-    <div style="font-size:13px;font-weight:500;margin-bottom:16px;">Earnings calendar <span style="font-size:11px;color:var(--text3);font-weight:400;">— next 30 days</span></div>
-    <div id="an-earnings-list" style="display:flex;flex-direction:column;gap:8px;"><div style="font-size:12px;color:var(--text3);">Loading...</div></div>
-  </div>
-</div>
-</div>
-
 
 <!-- SIGNALS PAGE -->
 <div class="page" id="page-signals">
@@ -871,20 +857,7 @@ setInterval(rmFetch, 15000);
   </div>
 </div>
 </div>
-    <div style="display:flex;gap:8px;">
-      <button onclick="setJournalFilter('all',this)" class="trtab active" id="jf-all">All</button>
-      <button onclick="setJournalFilter('stocks',this)" class="trtab" id="jf-stocks">Stocks</button>
-      <button onclick="setJournalFilter('options',this)" class="trtab" id="jf-options">Options</button>
-      <button onclick="setJournalFilter('wins',this)" class="trtab" id="jf-wins">Wins</button>
-      <button onclick="setJournalFilter('losses',this)" class="trtab" id="jf-losses">Losses</button>
-    </div>
-  </div>
-  <div id="journal-summary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;"></div>
-  <div id="signals-list" style="display:flex;flex-direction:column;gap:10px;">
-    <div style="font-size:12px;color:var(--text3);">Loading...</div>
-  </div>
-</div>
-</div>
+
 
 <!-- INTELLIGENCE PAGE -->
 <div class="page" id="page-intelligence">

@@ -2081,7 +2081,7 @@ function renderAnalytics(){
   [["mon",1],["tue",2],["wed",3],["thu",4],["fri",5]].forEach(([day,idx])=>{const val=dowMap[idx]||0;const el=document.getElementById("an-"+day);if(el){el.textContent=(val>=0?"+":"")+val.toFixed(2);el.style.color=val>0?"var(--green)":val<0?"var(--red)":"var(--text3)";}});
 }
 async function loadAnalytics(){
-  try{const r=await fetch("/history");anData=await r.json();renderAnalytics();}
+  try{const _api2=window.location.hostname==="tradeiqs.app"?"https://api.tradeiqs.app":"http://192.168.1.185:8081";const r=await fetch(_api2+"/history");anData=await r.json();renderAnalytics();}
   catch(e){console.error("Analytics error",e);}
 }
 
@@ -2103,15 +2103,16 @@ function renderSignalJournal(){
 }
 async function loadSignals(){
   try{
-    const er=await fetch("/earnings");const ed=await er.json();const upcoming=ed.upcoming||[];
+    const _api=window.location.hostname==='tradeiqs.app'?'https://api.tradeiqs.app':'http://192.168.1.185:8081';
+    const er=await fetch(_api+"/earnings");const ed=await er.json();const upcoming=ed.upcoming||[];
     const earnEl=document.getElementById("sig-earnings");
     if(earnEl){if(upcoming.length===0){earnEl.innerHTML='<div class="empty-msg">No earnings in next 14 days</div>';}
     else{earnEl.innerHTML=upcoming.map(e=>{const urgency=e.days===0?"var(--red)":e.days<=2?"var(--amber)":"var(--blue)";const label=e.days===0?"TODAY":e.days===1?"TOMORROW":"in "+e.days+"d";return '<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)"><span style="font-weight:700;font-family:var(--mono);font-size:13px">'+e.symbol+'</span><span style="font-size:10px;font-family:var(--mono);color:'+urgency+';font-weight:600">'+label+'</span><span style="font-size:10px;color:var(--text3)">'+(e.date||'')+'</span></div>';}).join('');}}
-    const pr=await fetch("/premarket");const pd=await pr.json();const wl=pd.watchlist||[];
+    const pr=await fetch(_api+"/premarket");const pd=await pr.json();const wl=pd.watchlist||[];
     const pmEl=document.getElementById("sig-premarket");const pmTime=document.getElementById("sig-pm-time");
     if(pmEl){if(wl.length===0){pmEl.innerHTML='<div class="empty-msg">No pre-market data - updates 8-9:30 AM</div>';}
     else{if(pmTime)pmTime.textContent="Updated "+new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});pmEl.innerHTML=wl.slice(0,10).map(w=>{const gap=w.gap_pct||0;const gC=gap>=0?"var(--green)":"var(--red)";const score=w.score||0;const scoreC=score>=7?"var(--green)":score>=5?"var(--amber)":"var(--text3)";const reasons=(w.reasons||[]).slice(0,3).join(" - ");return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)"><div style="font-weight:700;font-size:13px;font-family:var(--mono);min-width:52px">'+w.symbol+'</div><div style="font-size:12px;font-weight:600;font-family:var(--mono);color:'+gC+';min-width:52px">'+(gap>=0?"+":"")+gap.toFixed(1)+'%</div><div style="flex:1;font-size:11px;color:var(--text2)">'+reasons+'</div><div style="font-size:11px;font-family:var(--mono);color:'+scoreC+'">score '+score+'</div></div>';}).join('');}}
-    const sr=await fetch("/status");const sd=await sr.json();sigData={signals:sd.signals||[]};renderSignalJournal();
+    const sr=await fetch(_api+"/status");const sd=await sr.json();sigData={signals:sd.signals||[]};renderSignalJournal();
   }catch(e){console.error("Signals error",e);}
 }
 </script>

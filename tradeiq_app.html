@@ -1596,9 +1596,9 @@ const _origGoPage = goPage;
 goPage = function(p){
   _origGoPage(p);
   if(p==='forecast'){if(allForecastMarkets.length===0)loadForecast();}
-  if(p==='analytics')fetchAnalytics();
+  if(p==='analytics'){loadAnalytics();}
   if(p==='intelligence'){fetchIntelligence();fetchMarketNews();}
-  if(p==='signals')fetchSignals();
+  if(p==='signals'){loadSignals();}
 };
 
 async function fetchAnalytics(){

@@ -2034,3 +2034,85 @@ function loadDashboardWidgets() {
 loadDashboardWidgets();
 setInterval(loadDashboardWidgets, 30000);
 </script>
+
+<script>
+// ANALYTICS
+let anPeriod = "week", anData = null;
+function setAnPeriod(p,btn){anPeriod=p;document.querySelectorAll("#page-analytics .mf").forEach(b=>b.classList.remove("active"));if(btn)btn.classList.add("active");renderAnalytics();}
+function renderAnalytics(){
+  if(!anData)return;
+  const d=anData[anPeriod]||anData["all_time"];
+  const trades=d.trades||[];
+  const wins=trades.filter(t=>t.pnl_usd>0);
+  const losses=trades.filter(t=>t.pnl_usd<=0);
+  const totalPnl=trades.reduce((s,t)=>s+(t.pnl_usd||0),0);
+  const wr=trades.length>0?(wins.length/trades.length*100).toFixed(0)+"%":"--";
+  const avgPnl=trades.length>0?(totalPnl/trades.length):0;
+  const wrEl=document.getElementById("an-winrate");if(wrEl){wrEl.textContent=wr;wrEl.style.color=wins.length>=losses.length?"var(--green)":"var(--red)";}
+  const wlEl=document.getElementById("an-wl");if(wlEl)wlEl.textContent=wins.length+"W / "+losses.length+"L";
+  const pEl=document.getElementById("an-pnl");if(pEl){pEl.textContent="$"+Math.abs(totalPnl).toFixed(2);pEl.style.color=totalPnl>=0?"var(--green)":"var(--red)";}
+  const tEl=document.getElementById("an-trades");if(tEl)tEl.textContent=trades.length+" trades";
+  const aEl=document.getElementById("an-avg");if(aEl){aEl.textContent=(avgPnl>=0?"+":"")+avgPnl.toFixed(2);aEl.style.color=avgPnl>=0?"var(--green)":"var(--red)";}
+  const withTime=trades.filter(t=>t.opened_at&&t.closed_at);
+  const hEl=document.getElementById("an-hold");
+  if(hEl&&withTime.length>0){const avgMs=withTime.reduce((s,t)=>s+(new Date(t.closed_at)-new Date(t.opened_at)),0)/withTime.length;const avgMins=Math.round(avgMs/60000);hEl.textContent=avgMins>=60?(avgMins/60).toFixed(1)+"h":avgMins+"m";}
+  const maxWin=wins.length>0?Math.max(...wins.map(t=>t.pnl_usd)):0;
+  const maxLoss=losses.length>0?Math.min(...losses.map(t=>t.pnl_usd)):0;
+  const bwEl=document.getElementById("an-bigwin");if(bwEl)bwEl.textContent="+$"+maxWin.toFixed(2);
+  const blEl=document.getElementById("an-bigloss");if(blEl)blEl.textContent="$"+Math.abs(maxLoss).toFixed(2);
+  const stockPnl=trades.filter(t=>t.market==="stocks").reduce((s,t)=>s+(t.pnl_usd||0),0);
+  const optPnl=trades.filter(t=>t.market==="options").reduce((s,t)=>s+(t.pnl_usd||0),0);
+  const spEl=document.getElementById("an-stocks-pnl");if(spEl){spEl.textContent=(stockPnl>=0?"+":"")+stockPnl.toFixed(2);spEl.style.color=stockPnl>=0?"var(--green)":"var(--red)";}
+  const opEl=document.getElementById("an-opts-pnl");if(opEl){opEl.textContent=(optPnl>=0?"+":"")+optPnl.toFixed(2);opEl.style.color=optPnl>=0?"var(--green)":"var(--red)";}
+  const symMap={};
+  trades.forEach(t=>{const s=t.product_id||"?";if(!symMap[s])symMap[s]={wins:0,losses:0,pnl:0,trades:0};symMap[s].trades++;symMap[s].pnl+=(t.pnl_usd||0);if(t.pnl_usd>0)symMap[s].wins++;else symMap[s].losses++;});
+  const symArr=Object.entries(symMap).sort((a,b)=>b[1].pnl-a[1].pnl);
+  const symEl=document.getElementById("an-symbols");
+  if(symEl){if(symArr.length===0){symEl.innerHTML='<div class="empty-msg">No trade data yet</div>';}
+  else{symEl.innerHTML=symArr.slice(0,8).map(([sym,s])=>{const wr2=s.trades>0?Math.round(s.wins/s.trades*100):0;const pnlC=s.pnl>=0?"var(--green)":"var(--red)";const pnlS=(s.pnl>=0?"+":"")+s.pnl.toFixed(2);const bW=Math.min(100,wr2);return '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)"><div style="width:48px;font-weight:700;font-size:12px;font-family:var(--mono)">'+sym+'</div><div style="flex:1"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="font-size:10px;color:var(--text2)">'+s.trades+'T - '+wr2+'%WR</span><span style="font-size:11px;font-weight:600;font-family:var(--mono);color:'+pnlC+'">'+pnlS+'</span></div><div style="background:var(--bg3);border-radius:3px;height:3px"><div style="width:'+bW+'%;background:'+pnlC+';height:100%;border-radius:3px"></div></div></div></div>';}).join('');}}
+  const hourMap={};
+  trades.forEach(t=>{if(!t.opened_at)return;const h=new Date(t.opened_at).getHours();if(!hourMap[h])hourMap[h]={wins:0,pnl:0,trades:0};hourMap[h].trades++;hourMap[h].pnl+=(t.pnl_usd||0);if(t.pnl_usd>0)hourMap[h].wins++;});
+  const hourArr=Object.entries(hourMap).sort((a,b)=>b[1].pnl-a[1].pnl);
+  const timeEl=document.getElementById("an-time");
+  if(timeEl){if(hourArr.length===0){timeEl.innerHTML='<div class="empty-msg">No trade data yet</div>';}
+  else{timeEl.innerHTML=hourArr.slice(0,6).map(([h,s])=>{const label=parseInt(h)<12?h+":00 AM":(parseInt(h)===12?"12:00 PM":(parseInt(h)-12)+":00 PM");const pnlC=s.pnl>=0?"var(--green)":"var(--red)";const wr2=s.trades>0?Math.round(s.wins/s.trades*100):0;return '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="font-size:12px;font-family:var(--mono);color:var(--text2)">'+label+'</span><span style="font-size:11px;color:var(--text3)">'+s.trades+'T-'+wr2+'%</span><span style="font-size:12px;font-weight:600;font-family:var(--mono);color:'+pnlC+'">'+(s.pnl>=0?"+":"")+s.pnl.toFixed(2)+'</span></div>';}).join('');}}
+  const dowMap={1:0,2:0,3:0,4:0,5:0};
+  trades.forEach(t=>{if(!t.opened_at)return;const dw=new Date(t.opened_at).getDay();if(dw>=1&&dw<=5)dowMap[dw]+=(t.pnl_usd||0);});
+  [["mon",1],["tue",2],["wed",3],["thu",4],["fri",5]].forEach(([day,idx])=>{const val=dowMap[idx]||0;const el=document.getElementById("an-"+day);if(el){el.textContent=(val>=0?"+":"")+val.toFixed(2);el.style.color=val>0?"var(--green)":val<0?"var(--red)":"var(--text3)";}});
+}
+async function loadAnalytics(){
+  try{const r=await fetch("/history");anData=await r.json();renderAnalytics();}
+  catch(e){console.error("Analytics error",e);}
+}
+
+// SIGNALS
+let sigFilter="all", sigData=null;
+function setSigFilter(f,btn){sigFilter=f;document.querySelectorAll("#page-signals .trtab").forEach(b=>b.classList.remove("active"));if(btn)btn.classList.add("active");renderSignalJournal();}
+function renderSignalJournal(){
+  if(!sigData)return;
+  const el=document.getElementById("sig-journal");
+  let signals=sigData.signals||[];
+  if(sigFilter==="buy")signals=signals.filter(s=>s.action==="BUY");
+  else if(sigFilter==="hold")signals=signals.filter(s=>s.action==="HOLD");
+  else if(sigFilter==="stocks")signals=signals.filter(s=>s.market==="stocks"||!s.market);
+  else if(sigFilter==="options")signals=signals.filter(s=>s.market==="options");
+  signals=signals.slice(0,50);
+  if(!el)return;
+  if(signals.length===0){el.innerHTML='<div class="empty-msg">No signals yet</div>';return;}
+  el.innerHTML=signals.map(s=>{const isBuy=s.action==="BUY";const conf=Math.round((s.confidence||0)*100);const confC=conf>=72?"var(--green)":conf>=60?"var(--amber)":"var(--text3)";const aColor=isBuy?"var(--green)":"var(--text3)";const aBg=isBuy?"var(--gbg)":"var(--bg3)";const aBdr=isBuy?"var(--gbdr)":"var(--border)";const entry=s.entry_price?"$"+parseFloat(s.entry_price).toFixed(2):"--";const tp=s.take_profit?"$"+parseFloat(s.take_profit).toFixed(2):"--";const sl=s.stop_loss?"$"+parseFloat(s.stop_loss).toFixed(2):"--";return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg2);border-radius:8px;border:1px solid '+aBdr+'"><div style="padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;font-family:var(--mono);background:'+aBg+';color:'+aColor+';border:1px solid '+aBdr+';min-width:36px;text-align:center">'+(s.action||"?")+'</div><div style="font-weight:700;font-size:13px;min-width:52px;font-family:var(--mono)">'+(s.product_id||"?")+'</div><div style="flex:1;font-size:11px;color:var(--text2)">entry '+entry+' - SL '+sl+' - TP '+tp+'</div><div style="font-size:12px;font-weight:700;font-family:var(--mono);color:'+confC+'">'+conf+'%</div></div>';}).join('');
+}
+async function loadSignals(){
+  try{
+    const er=await fetch("/earnings");const ed=await er.json();const upcoming=ed.upcoming||[];
+    const earnEl=document.getElementById("sig-earnings");
+    if(earnEl){if(upcoming.length===0){earnEl.innerHTML='<div class="empty-msg">No earnings in next 14 days</div>';}
+    else{earnEl.innerHTML=upcoming.map(e=>{const urgency=e.days===0?"var(--red)":e.days<=2?"var(--amber)":"var(--blue)";const label=e.days===0?"TODAY":e.days===1?"TOMORROW":"in "+e.days+"d";return '<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)"><span style="font-weight:700;font-family:var(--mono);font-size:13px">'+e.symbol+'</span><span style="font-size:10px;font-family:var(--mono);color:'+urgency+';font-weight:600">'+label+'</span><span style="font-size:10px;color:var(--text3)">'+(e.date||'')+'</span></div>';}).join('');}}
+    const pr=await fetch("/premarket");const pd=await pr.json();const wl=pd.watchlist||[];
+    const pmEl=document.getElementById("sig-premarket");const pmTime=document.getElementById("sig-pm-time");
+    if(pmEl){if(wl.length===0){pmEl.innerHTML='<div class="empty-msg">No pre-market data - updates 8-9:30 AM</div>';}
+    else{if(pmTime)pmTime.textContent="Updated "+new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});pmEl.innerHTML=wl.slice(0,10).map(w=>{const gap=w.gap_pct||0;const gC=gap>=0?"var(--green)":"var(--red)";const score=w.score||0;const scoreC=score>=7?"var(--green)":score>=5?"var(--amber)":"var(--text3)";const reasons=(w.reasons||[]).slice(0,3).join(" - ");return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)"><div style="font-weight:700;font-size:13px;font-family:var(--mono);min-width:52px">'+w.symbol+'</div><div style="font-size:12px;font-weight:600;font-family:var(--mono);color:'+gC+';min-width:52px">'+(gap>=0?"+":"")+gap.toFixed(1)+'%</div><div style="flex:1;font-size:11px;color:var(--text2)">'+reasons+'</div><div style="font-size:11px;font-family:var(--mono);color:'+scoreC+'">score '+score+'</div></div>';}).join('');}}
+    const sr=await fetch("/status");const sd=await sr.json();sigData={signals:sd.signals||[]};renderSignalJournal();
+  }catch(e){console.error("Signals error",e);}
+}
+</script>
+

@@ -789,8 +789,44 @@ setInterval(rmFetch, 15000);
 
 <!-- ANALYTICS PAGE -->
 <div class="page" id="page-analytics">
-<div style="padding:28px 36px;max-width:1080px;margin:0 auto;">
-  <div style="margin-bottom:24px;"><div style="font-size:22px;font-weight:700;letter-spacing:-0.03em;margin-bottom:4px;">Analytics</div><div style="font-size:13px;color:var(--text3);">Win rate by symbol · Earnings calendar · Performance</div></div>
+<div class="home">
+  <div class="hdr" style="margin-bottom:24px">
+    <div><div class="hdr-greet">Analytics</div><div class="hdr-sub">Performance breakdown — win rates, best symbols, timing</div></div>
+  </div>
+  <div style="display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap">
+    <button class="mf active" onclick="setAnPeriod('week',this)">7 Days</button>
+    <button class="mf" onclick="setAnPeriod('month',this)">30 Days</button>
+    <button class="mf" onclick="setAnPeriod('year',this)">1 Year</button>
+    <button class="mf" onclick="setAnPeriod('all_time',this)">All Time</button>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px" class="an-stats-grid">
+    <div class="hcard" style="text-align:center"><div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:8px">WIN RATE</div><div id="an-winrate" style="font-size:28px;font-weight:700;color:var(--green)">—</div><div id="an-wl" style="font-size:11px;color:var(--text2);margin-top:4px">0W / 0L</div></div>
+    <div class="hcard" style="text-align:center"><div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:8px">TOTAL P&L</div><div id="an-pnl" style="font-size:28px;font-weight:700;color:var(--text)">$0.00</div><div id="an-trades" style="font-size:11px;color:var(--text2);margin-top:4px">0 trades</div></div>
+    <div class="hcard" style="text-align:center"><div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:8px">AVG P&L / TRADE</div><div id="an-avg" style="font-size:28px;font-weight:700;color:var(--text)">$0.00</div><div style="font-size:11px;color:var(--text2);margin-top:4px">per closed trade</div></div>
+    <div class="hcard" style="text-align:center"><div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:8px">AVG HOLD TIME</div><div id="an-hold" style="font-size:28px;font-weight:700;color:var(--blue)">—</div><div style="font-size:11px;color:var(--text2);margin-top:4px">per position</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px" class="an-mid-grid">
+    <div class="hcard"><div class="hcard-tit">Performance by Symbol</div><div id="an-symbols" style="display:flex;flex-direction:column;gap:8px;margin-top:4px"><div class="empty-msg">No trade data yet</div></div></div>
+    <div class="hcard"><div class="hcard-tit">Best Time to Trade</div><div id="an-time" style="display:flex;flex-direction:column;gap:8px;margin-top:4px"><div class="empty-msg">No trade data yet</div></div></div>
+  </div>
+  <div class="hcard" style="margin-bottom:20px">
+    <div class="hcard-tit">P&L by Day of Week</div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:12px">
+      <div style="text-align:center;padding:12px 8px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)"><div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:6px">MON</div><div id="an-mon" style="font-size:16px;font-weight:600">—</div></div>
+      <div style="text-align:center;padding:12px 8px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)"><div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:6px">TUE</div><div id="an-tue" style="font-size:16px;font-weight:600">—</div></div>
+      <div style="text-align:center;padding:12px 8px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)"><div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:6px">WED</div><div id="an-wed" style="font-size:16px;font-weight:600">—</div></div>
+      <div style="text-align:center;padding:12px 8px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)"><div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:6px">THU</div><div id="an-thu" style="font-size:16px;font-weight:600">—</div></div>
+      <div style="text-align:center;padding:12px 8px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)"><div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:6px">FRI</div><div id="an-fri" style="font-size:16px;font-weight:600">—</div></div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px" class="an-stats-grid">
+    <div class="hcard" style="text-align:center"><div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:8px">LARGEST WIN</div><div id="an-bigwin" style="font-size:22px;font-weight:700;color:var(--green)">$0.00</div></div>
+    <div class="hcard" style="text-align:center"><div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:8px">LARGEST LOSS</div><div id="an-bigloss" style="font-size:22px;font-weight:700;color:var(--red)">$0.00</div></div>
+    <div class="hcard" style="text-align:center"><div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:8px">STOCKS P&L</div><div id="an-stocks-pnl" style="font-size:22px;font-weight:700">$0.00</div></div>
+    <div class="hcard" style="text-align:center"><div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:8px">OPTIONS P&L</div><div id="an-opts-pnl" style="font-size:22px;font-weight:700">$0.00</div></div>
+  </div>
+</div>
+</div>
   <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px 24px;margin-bottom:18px;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
       <div style="font-size:13px;font-weight:500;">Win rate by symbol</div>
@@ -808,12 +844,33 @@ setInterval(rmFetch, 15000);
 
 <!-- SIGNALS PAGE -->
 <div class="page" id="page-signals">
-<div style="padding:28px 36px;max-width:1080px;margin:0 auto;">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
-    <div>
-      <div style="font-size:22px;font-weight:700;letter-spacing:-0.03em;margin-bottom:4px;">Trade Journal</div>
-      <div style="font-size:13px;color:var(--text3);">Every trade — what happened and why</div>
+<div class="home">
+  <div class="hdr" style="margin-bottom:24px">
+    <div><div class="hdr-greet">Signals</div><div class="hdr-sub">Live signal journal + pre-market watchlist</div></div>
+  </div>
+  <div class="hcard" style="margin-bottom:20px">
+    <div class="hcard-tit">📅 Earnings This Week</div>
+    <div id="sig-earnings" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px"><div class="empty-msg">Loading...</div></div>
+  </div>
+  <div class="hcard" style="margin-bottom:20px">
+    <div class="hcard-tit">🌅 Pre-Market Watchlist <span style="font-size:11px;color:var(--text3);font-family:var(--mono);font-weight:400" id="sig-pm-time"></span></div>
+    <div id="sig-premarket" style="display:flex;flex-direction:column;gap:8px;margin-top:10px"><div class="empty-msg">No pre-market data — updates before 9:30 AM</div></div>
+  </div>
+  <div class="hcard">
+    <div class="hcard-tit" style="display:flex;align-items:center;justify-content:space-between">
+      <span>📡 Signal Journal</span>
+      <div style="display:flex;gap:6px">
+        <button class="trtab active" onclick="setSigFilter('all',this)">All</button>
+        <button class="trtab" onclick="setSigFilter('buy',this)">BUY</button>
+        <button class="trtab" onclick="setSigFilter('hold',this)">HOLD</button>
+        <button class="trtab" onclick="setSigFilter('stocks',this)">Stocks</button>
+        <button class="trtab" onclick="setSigFilter('options',this)">Options</button>
+      </div>
     </div>
+    <div style="margin-top:12px;display:flex;flex-direction:column;gap:6px" id="sig-journal"><div class="empty-msg">Waiting for scan data...</div></div>
+  </div>
+</div>
+</div>
     <div style="display:flex;gap:8px;">
       <button onclick="setJournalFilter('all',this)" class="trtab active" id="jf-all">All</button>
       <button onclick="setJournalFilter('stocks',this)" class="trtab" id="jf-stocks">Stocks</button>
@@ -1000,7 +1057,9 @@ async function fetchIntelligence() {
   } catch(e) {}
 }
 
-function goPage(p){document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));document.querySelectorAll('.nbtn').forEach(e=>e.classList.remove('active'));document.getElementById('page-'+p).classList.add('active');document.getElementById('nav-'+p).classList.add('active');if(p==='analytics')fetchAnalytics();if(p==='intelligence')fetchIntelligence();}
+function goPage(p){
+  if(p==="analytics")loadAnalytics();
+  if(p==="signals")loadSignals();document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));document.querySelectorAll('.nbtn').forEach(e=>e.classList.remove('active'));document.getElementById('page-'+p).classList.add('active');document.getElementById('nav-'+p).classList.add('active');if(p==='analytics')fetchAnalytics();if(p==='intelligence')fetchIntelligence();}
 function setOnline(ok){document.getElementById('nconn').className='nconn'+(ok?' on':'');document.getElementById('hconn').textContent=ok?'ONLINE':'OFFLINE';document.getElementById('hconn').className='stag '+(ok?'ton':'toff')}
 async function fetchStatus(){try{const r=await fetch(API+'/status',{signal:AbortSignal.timeout(15000)});if(!r.ok)throw new Error();const d=await r.json();lastD=d;setOnline(true);try{localStorage.setItem("tiq_cache",JSON.stringify(d));}catch(e){}try{renderAll(d);}catch(re){console.error('renderAll error:',re);}}catch(e){console.error('fetch error:',e);setOnline(false);}}
 function renderAll(d){

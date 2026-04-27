@@ -77,6 +77,15 @@ class TastytradeClient:
                 method, url, headers=headers,
                 json=body, params=params, timeout=15
             )
+            # Auto re-login on 401 session expiry
+            if resp.status_code == 401:
+                log.warning("Tastytrade session expired — re-logging in")
+                self._login()
+                headers["Authorization"] = self.session_token
+                resp = requests.request(
+                    method, url, headers=headers,
+                    json=body, params=params, timeout=15
+                )
             resp.raise_for_status()
             return resp.json()
         except Exception as e:

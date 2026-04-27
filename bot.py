@@ -952,6 +952,10 @@ def run_earnings_options_scan(options_client, ibkr):
                 if isinstance(fill.get("order_id",""), str) and len(fill.get("order_id","")) < 5:
                     log.warning(f"Earnings play {symbol}: order response suspicious — skipping save")
                     continue
+            # Only log position if order actually filled — not just submitted
+            if fill and fill.get("success") and fill.get("filled") == False:
+                log.warning(f"Earnings play {symbol}: order pending, not logging as filled yet")
+                continue
             if fill and fill.get("success"):
                 cost = float(contract.get("close_price", 0)) * 100
                 contract_sym = contract.get("symbol", "")

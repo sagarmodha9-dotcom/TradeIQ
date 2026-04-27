@@ -268,7 +268,25 @@ class TastytradeClient:
             order_id = data.get("data", {}).get("order", {}).get("id")
             if order_id:
                 log.info(f"Tastytrade order: {action} {contract_symbol} x{qty} — ID {order_id}")
-                return {"success": True, "order_id": order_id, "symbol": contract_symbol}
+                # Wait up to 10s for fill confirmation before logging as filled
+                import time as _t
+                for _ in range(5):
+                    _t.sleep(2)
+                    try:
+                        _o = self._request("GET", f"/accounts/{self.account_number}/orders/{order_id}")
+                        _status = _o.get("data", {}).get("status", "")
+                        if _status == "Filled":
+                            log.info(f"✅ Tastytrade FILLED: {contract_symbol} — ID {order_id}")
+                            return {"success": True, "filled": True, "order_id": order_id, "symbol": contract_symbol}
+                        elif _status in ("Cancelled", "Rejected"):
+                            log.warning(f"Tastytrade order {_status}: {contract_symbol}")
+                            return {"success": False, "filled": False, "status": _status}
+                        log.info(f"Tastytrade order {_status}: {contract_symbol} — waiting...")
+                    except:
+                        pass
+                # Still working after 10s — return pending, do not log as filled
+                log.warning(f"⏳ Tastytrade order still pending after 10s: {contract_symbol} — not logging as filled")
+                return {"success": True, "filled": False, "order_id": order_id, "symbol": contract_symbol}
             # Check for closing_only restriction
             errors = data.get("error", {}).get("errors", [])
             for e in errors:

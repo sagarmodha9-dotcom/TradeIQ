@@ -23,6 +23,7 @@ from logger import log
 
 # In-memory cooldown
 _trade_cooldown = {}
+_immediate_redeploy = False  # Flag to trigger instant rescan after TP close
 from alpaca_client import AlpacaClient
 from analyzer import Analyzer
 from stock_analyzer import StockAnalyzer
@@ -410,6 +411,9 @@ def monitor_stock_positions(ibkr, pt):
                     from notifier import alert_trade_closed
                     alert_trade_closed(symbol, "BUY", entry, current, pnl, pnl_pct, "closed_tp", "stocks")
                     closed.append(symbol)
+                    global _immediate_redeploy
+                    _immediate_redeploy = True  # Trigger instant rescan
+                    log.info(f"⚡ INSTANT REDEPLOY triggered — slot freed by {symbol} TP")
                 else:
                     log.info(f"📈 STOCK {symbol} @ ${current:.2f} PnL: ${pnl:.2f} ({pnl_pct:+.2f}%)")
                     pos["pnl_usd"] = round(pnl, 4)
@@ -1122,6 +1126,10 @@ def main():
         log.info(f"Next scan in {config.SCAN_INTERVAL}s. Ctrl+C to stop.\n")
         for _ in range(config.SCAN_INTERVAL):
             if not _running: break
+            if _immediate_redeploy:
+                _immediate_redeploy = False
+                log.info("⚡ INSTANT REDEPLOY — skipping wait, scanning now")
+                break
             time.sleep(1)
     log.info(f"Final — Stocks:${pt.stock_balance:,.2f} | Total:${pt.stock_balance:,.2f}")
 

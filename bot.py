@@ -30,6 +30,7 @@ from trade_manager import TradeManager
 from portfolio_tracker import PortfolioTracker
 
 _running = True
+_sent_summaries = set()
 
 def _handle_exit(sig, frame):
     global _running
@@ -1088,8 +1089,10 @@ def main():
             from datetime import datetime
             import pytz
             now_et = datetime.now(pytz.timezone("US/Eastern"))
-            if now_et.hour == 16 and now_et.minute == 0:
-                # Daily summary — once at exactly 4:00 PM
+            _summary_key = f"summary_{now_et.strftime('%Y%m%d')}"
+            if now_et.hour == 16 and now_et.minute == 0 and now_et.weekday() < 5 and _summary_key not in _sent_summaries:
+                _sent_summaries.add(_summary_key)
+                # Daily summary — once at exactly 4:00 PM weekdays only
                 from notifier import alert_daily_summary
                 from trade_history import get_daily_summary
                 summary = get_daily_summary()

@@ -342,7 +342,10 @@ def monitor_stock_positions(ibkr, pt):
                         from datetime import datetime as _dt
                         opened_time = _dt.fromisoformat(opened_at.replace("Z",""))
                         hours_open = (_dt.now() - opened_time).total_seconds() / 3600
-                        if hours_open >= 4 and pnl_pct >= 3.0:
+                        # Don't time-exit if earnings within 3 days — hold for catalyst
+                        from earnings_calendar import days_to_earnings
+                        _dte = days_to_earnings(symbol)
+                        if hours_open >= 4 and pnl_pct >= 3.0 and (_dte is None or _dte > 3):
                             log.info(f"⏰ TIME EXIT {symbol} @ ${current:.2f} — open {hours_open:.1f}hrs +{pnl_pct:.1f}% — taking profit")
                             ibkr.place_market_order(symbol, "sell", qty=float(pos["quantity"]))
                             from trade_history import save_trade

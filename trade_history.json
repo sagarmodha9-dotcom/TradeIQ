@@ -13,5 +13,20 @@
     "closed_at": "2026-04-27T09:30:24.067755",
     "date": "2026-04-27",
     "saved_at": "2026-04-27T13:30:24.068358+00:00"
+  },
+  {
+    "product_id": "GOOGL",
+    "side": "BUY",
+    "entry_price": 340.194,
+    "exit_price": 350.775,
+    "pnl_usd": 6.2206,
+    "pnl_pct": 3.11,
+    "status": "closed_time_exit",
+    "market": "stocks",
+    "confidence": 0.72,
+    "opened_at": "2026-04-24T15:34:20.393284Z",
+    "closed_at": "2026-04-27T10:30:14.103371",
+    "date": "2026-04-27",
+    "saved_at": "2026-04-27T14:30:14.103707+00:00"
   }
 ]

@@ -86,6 +86,9 @@ class TastytradeClient:
                     method, url, headers=headers,
                     json=body, params=params, timeout=15
                 )
+            if resp.status_code == 422:
+                log.error(f"Tastytrade 422 error: {resp.text}")
+                return resp.json()
             resp.raise_for_status()
             return resp.json()
         except Exception as e:
@@ -303,6 +306,10 @@ class TastytradeClient:
                     log.warning(f"Tastytrade: {contract_symbol} is closing only — skipping")
                     return {"success": False, "error": "closing_only"}
             log.error(f"Tastytrade order failed: {data}")
+            # Log detailed error for debugging
+            errors = data.get("error", {})
+            if errors:
+                log.error(f"Tastytrade order error detail: {errors}")
             return {"success": False}
         except Exception as e:
             log.error(f"Tastytrade place_option_order {contract_symbol}: {e}")

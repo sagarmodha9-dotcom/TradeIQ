@@ -353,7 +353,12 @@ def monitor_stock_positions(ibkr, pt):
                         _dte = days_to_earnings(symbol)
                         if hours_open >= 4 and pnl_pct >= 3.0 and (_dte is None or _dte > 3):
                             log.info(f"⏰ TIME EXIT {symbol} @ ${current:.2f} — open {hours_open:.1f}hrs +{pnl_pct:.1f}% — taking profit")
-                            ibkr.place_market_order(symbol, "sell", qty=float(pos["quantity"]))
+                            _sell_result = ibkr.place_market_order(symbol, "sell", qty=float(pos["quantity"]))
+                            if not _sell_result or (isinstance(_sell_result, dict) and _sell_result.get("status") in ("rejected", "canceled", None)) or (isinstance(_sell_result, dict) and not _sell_result.get("id")):
+                                log.warning(f"⚠️ TIME EXIT {symbol}: sell order failed or rejected — NOT logging phantom close")
+                                # Add cooldown so it doesn't keep retrying every minute
+                                _trade_cooldown[symbol] = datetime.now()
+                                continue
                             from trade_history import save_trade
                             save_trade({"product_id": symbol, "side": "BUY", "entry_price": entry,
                                 "exit_price": current, "pnl_usd": round(pnl, 4),

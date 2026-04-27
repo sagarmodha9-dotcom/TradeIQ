@@ -257,6 +257,16 @@ class TastytradeClient:
             if not limit_price or limit_price <= 0:
                 log.error(f"Tastytrade: could not get price for {contract_symbol}")
                 return {"success": False, "error": "no price available"}
+            # Check buying power before attempting order
+            try:
+                bal = self.get_account_balance()
+                buying_power = float(bal) if bal else 0
+                order_cost = round(limit_price * 100, 2)
+                if buying_power < order_cost:
+                    log.warning(f"Tastytrade: insufficient buying power ${buying_power:.2f} for ${order_cost:.2f} order — skipping")
+                    return {"success": False, "error": "insufficient_buying_power"}
+            except:
+                pass
 
             price_effect = "Credit" if "Sell" in action else "Debit"
             order = {

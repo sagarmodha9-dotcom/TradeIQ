@@ -259,8 +259,7 @@ class TastytradeClient:
                 return {"success": False, "error": "no price available"}
             # Check buying power before attempting order
             try:
-                bal = self.get_account_balance()
-                buying_power = float(bal) if bal else 0
+                buying_power = self.get_buying_power()
                 order_cost = round(limit_price * 100, 2)
                 if buying_power < order_cost:
                     log.warning(f"Tastytrade: insufficient buying power ${buying_power:.2f} for ${order_cost:.2f} — skipping")
@@ -345,6 +344,22 @@ class TastytradeClient:
             return net_liq
         except Exception as e:
             log.error(f"Tastytrade get_account_balance: {e}")
+            return 0.0
+
+    def get_buying_power(self):
+        """Get available buying power for options."""
+        try:
+            data = self._request("GET", f"/accounts/{self.account_number}/balances")
+            bal = data.get("data", {})
+            # Use derivative-buying-power for options
+            bp = float(bal.get("derivative-buying-power", 0) or 0)
+            if bp <= 0:
+                bp = float(bal.get("cash-available-to-withdraw", 0) or 0)
+            if bp <= 0:
+                bp = float(bal.get("net-liquidating-value", 0) or 0)
+            return bp
+        except Exception as e:
+            log.error(f"Tastytrade get_buying_power: {e}")
             return 0.0
 
     def get_option_market_price(self, symbol):

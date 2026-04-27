@@ -241,7 +241,12 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
                         log.info(f"[BLOCKED] {symbol}: {reason}")
                         continue
                     # Always size based on TOTAL account balance, capped at available cash
-                    base_size = config.LIVE_ACCOUNT_BALANCE * config.MAX_POSITION_PCT
+                    # Use real live balance for dynamic position sizing
+                    try:
+                        _live_bal = float(ibkr.get_account().get("portfolio_value", config.LIVE_ACCOUNT_BALANCE))
+                    except:
+                        _live_bal = config.LIVE_ACCOUNT_BALANCE
+                    base_size = _live_bal * config.MAX_POSITION_PCT
                     try:
                         avail_cash = ibkr.get_cash_balance()
                         if avail_cash < base_size:

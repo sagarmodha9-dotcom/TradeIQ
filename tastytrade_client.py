@@ -263,6 +263,16 @@ class TastytradeClient:
                 buying_power = float(bal) if bal else 0
                 order_cost = round(limit_price * 100, 2)
                 if buying_power < order_cost:
+                    log.warning(f"Tastytrade: insufficient buying power ${buying_power:.2f} for ${order_cost:.2f} — skipping")
+                    return {"success": False, "error": "insufficient_buying_power"}
+            except:
+                pass
+            # Check buying power before attempting order
+            try:
+                bal = self.get_account_balance()
+                buying_power = float(bal) if bal else 0
+                order_cost = round(limit_price * 100, 2)
+                if buying_power < order_cost:
                     log.warning(f"Tastytrade: insufficient buying power ${buying_power:.2f} for ${order_cost:.2f} order — skipping")
                     return {"success": False, "error": "insufficient_buying_power"}
             except:

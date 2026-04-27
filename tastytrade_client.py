@@ -249,7 +249,8 @@ class TastytradeClient:
                 try:
                     mkt = self.get_option_price(contract_symbol.strip())
                     if mkt and mkt > 0:
-                        limit_price = round(mkt * 1.02, 2)  # 2% above mid to ensure fill
+                        raw = mkt * 1.02
+                        limit_price = round(round(raw / 0.05) * 0.05, 2)  # Round to $0.05 increment
                 except:
                     pass
 

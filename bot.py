@@ -589,7 +589,15 @@ def run_options_scan(options_client, options_analyzer, stock_signals, pt):
             if opt_signal["confidence"] < config.MIN_CONFIDENCE:
                 continue
             direction = "call" if "call" in opt_signal["strategy"] else "put"
-            budget = 1000 if config.IS_LIVE else 250
+            # Use real Tastytrade buying power for dynamic options budget
+            try:
+                from tastytrade_client import TastytradeClient as _TT
+                _tt = _TT()
+                _bp = _tt.get_buying_power()
+                budget = min(int(_bp * 0.8), 1000) if _bp > 50 else 0
+            except:
+                budget = 1000 if config.IS_LIVE else 250
+            log.info(f"Options budget: ${budget:.0f} (buying power: ${_bp:.0f})")
             # Earnings calendar: use weekly options if earnings within 7 days
             expiry_days, expiry_reason = get_options_expiry_days(symbol)
             if has_earnings_soon(symbol):

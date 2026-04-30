@@ -208,6 +208,13 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
                     "risk_reward": signal.get("risk_reward", 2.0),
                     "reasoning":   signal.get("reasoning", ""), "market": "stocks",
                 })
+                # Pre-earnings entry block: don't open new positions <= 1 day before earnings
+                from earnings_calendar import days_to_earnings as _dte_check
+                _entry_dte = _dte_check(symbol)
+                if _entry_dte is not None and _entry_dte <= 1 and signal["action"] == "BUY":
+                    log.warning(f"[EARNINGS BLOCK] {symbol}: earnings in {_entry_dte} day(s) — skipping new entry")
+                    continue
+                
                 # 2 minute cooldown after TP/SL — prevents buying right at peak
                 _cooldown_active = False
                 if symbol in _trade_cooldown:
@@ -341,17 +348,51 @@ def monitor_stock_positions(ibkr, pt):
                         pos["stop_loss"] = breakeven_sl
                         sl = breakeven_sl
                         log.info(f"🔒 BREAKEVEN SL {symbol} → ${breakeven_sl:.2f} (price=${current:.2f} +{pnl_pct:.1f}%)")
-                # Time-based exit — if open 4+ hours and up 3%+, take profit
+                # Pre-earnings risk management — tighten SL or exit before earnings
                 try:
+                    from earnings_calendar import days_to_earnings
+                    _dte = days_to_earnings(symbol)
+                    
+                    # FORCE EXIT on earnings day (DTE == 0) — never hold through earnings
+                    if _dte is not None and _dte == 0:
+                        log.warning(f"⚠️ EARNINGS DAY EXIT {symbol} @ ${current:.2f} — earnings today, force closing")
+                        _earnings_sell = ibkr.place_market_order(symbol, "sell", qty=float(pos["quantity"]))
+                        if _earnings_sell and isinstance(_earnings_sell, dict) and _earnings_sell.get("id"):
+                            from trade_history import save_trade
+                            save_trade({"product_id": symbol, "side": "BUY", "entry_price": entry,
+                                "exit_price": current, "pnl_usd": round(pnl, 4),
+                                "pnl_pct": round(pnl_pct, 2), "status": "closed_earnings_exit",
+                                "market": "stocks", "confidence": pos.get("confidence", 0),
+                                "opened_at": pos.get("opened_at"), "closed_at": datetime.now().isoformat()})
+                            pt.record_stock_trade(round(pnl, 4), win=(pnl > 0))
+                            from notifier import alert_trade_closed
+                            alert_trade_closed(symbol, "BUY", entry, current, pnl, pnl_pct, "closed_earnings_exit", "stocks")
+                            closed.append(symbol)
+                            _trade_cooldown[symbol] = datetime.now()
+                            continue
+                        else:
+                            log.warning(f"⚠️ EARNINGS DAY EXIT {symbol}: sell failed — will retry next scan")
+                    
+                    # Tighten stop loss as earnings approaches
+                    if _dte is not None and _dte <= 4 and pos.get("entry_price"):
+                        if _dte <= 2:
+                            tight_sl_pct = 0.015  # 1.5% SL within 2 days of earnings
+                        else:
+                            tight_sl_pct = 0.020  # 2% SL within 3-4 days
+                        tight_sl = round(float(pos["entry_price"]) * (1 - tight_sl_pct), 2)
+                        if tight_sl > pos.get("stop_loss", 0):
+                            log.info(f"🔒 PRE-EARNINGS SL {symbol} → ${tight_sl:.2f} (DTE={_dte}, was ${pos.get('stop_loss',0):.2f})")
+                            pos["stop_loss"] = tight_sl
+                            sl = tight_sl
+                    
                     opened_at = pos.get("opened_at")
                     if opened_at:
                         from datetime import datetime as _dt
                         opened_time = _dt.fromisoformat(opened_at.replace("Z",""))
                         hours_open = (_dt.now() - opened_time).total_seconds() / 3600
-                        # Don't time-exit if earnings within 3 days — hold for catalyst
-                        from earnings_calendar import days_to_earnings
-                        _dte = days_to_earnings(symbol)
-                        if hours_open >= 4 and pnl_pct >= 3.0 and (_dte is None or _dte > 3):
+                        # Time exit at +3% normally; FORCE time exit if earnings within 3 days
+                        _force_exit = _dte is not None and _dte <= 3 and pnl_pct > 0
+                        if (hours_open >= 4 and pnl_pct >= 3.0) or _force_exit:
                             log.info(f"⏰ TIME EXIT {symbol} @ ${current:.2f} — open {hours_open:.1f}hrs +{pnl_pct:.1f}% — taking profit")
                             _sell_result = ibkr.place_market_order(symbol, "sell", qty=float(pos["quantity"]))
                             if not _sell_result or (isinstance(_sell_result, dict) and _sell_result.get("status") in ("rejected", "canceled", None)) or (isinstance(_sell_result, dict) and not _sell_result.get("id")):

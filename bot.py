@@ -503,18 +503,42 @@ def monitor_option_positions(options_client):
                         log.info(f"OPTIONS {p['product_id']} DTE={days_to_expiry} TP={tp_threshold}%")
 
                         def _close_option(reason):
+                            # Cooldown: don't retry close for 5 min after failed attempt
+                            from datetime import datetime as _dt
+                            last_attempt = p.get("last_close_attempt")
+                            if last_attempt:
+                                try:
+                                    last_dt = _dt.fromisoformat(last_attempt.replace("Z",""))
+                                    elapsed = (_dt.now() - last_dt).total_seconds()
+                                    if elapsed < 300:
+                                        log.info(f"OPTIONS {p['product_id']}: close cooldown active ({300-elapsed:.0f}s remaining)")
+                                        return
+                                except:
+                                    pass
+                            p["last_close_attempt"] = _dt.now().isoformat()
+                            
+                            # Attempt the sell
+                            sell_result = None
                             try:
-                                options_client.place_option_order(p["product_id"], qty=1, side="sell")
+                                sell_result = options_client.place_option_order(p["product_id"], qty=1, side="sell")
                             except Exception as ce:
                                 log.error(f"Options close order failed: {ce}")
+                                return  # Don't write phantom trade
+                            
+                            # Check if sell actually succeeded
+                            if not sell_result or (isinstance(sell_result, dict) and not sell_result.get("success")):
+                                log.warning(f"⚠️ OPTIONS CLOSE {p['product_id']}: sell failed — NOT logging phantom close, will retry after cooldown")
+                                return
+                            
+                            # Sell confirmed - log it properly
                             p["status"] = reason
                             from trade_history import save_trade
-                            save_trade({**p, "exit_price": current, "pnl_usd": pnl, "pnl_pct": pnl_pct, "market": "options"})
+                            save_trade({**p, "exit_price": current, "pnl_usd": pnl, "pnl_pct": pnl_pct, 
+                                        "market": "options", "closed_at": _dt.now().isoformat()})
                             state["positions"] = [x for x in state["positions"] if x.get("product_id") != p["product_id"]]
                             with open("bot_state.json", "w") as _f:
                                 import json as _j
                                 _j.dump(state, _f, indent=2, default=str)
-                            # Telegram alert for option closed
                             from notifier import alert_option_closed
                             alert_option_closed(p.get("underlying", p["product_id"]), p["product_id"], pnl, reason)
                             log.info(f"OPTIONS AUTO-CLOSED: {p['product_id']} {pnl_pct:.1f}% ({reason})")

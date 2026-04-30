@@ -12,14 +12,19 @@ def load_history():
         return []
 
 def save_trade(trade: dict):
-    """Append a closed trade to the persistent history file."""
+    """Append a closed trade to the persistent history file.
+    REJECTS trades without closed_at to prevent phantom writes."""
+    if not trade.get("closed_at"):
+        import logging
+        logging.getLogger().warning(f"REJECTED phantom trade write: {trade.get('product_id')} - no closed_at timestamp")
+        return False
     history = load_history()
-    # Add date field for filtering
     trade["date"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     trade["saved_at"] = datetime.now(timezone.utc).isoformat()
     history.append(trade)
     with open(HISTORY_FILE, "w") as f:
         json.dump(history, f, indent=2, default=str)
+    return True
 
 def get_trades_by_date(date_str: str = None):
     """Get trades for a specific date (YYYY-MM-DD). Defaults to today."""

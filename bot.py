@@ -166,6 +166,42 @@ def get_position_size(symbol, base_size, ibkr):
     except Exception:
         return base_size
 
+
+
+_daily_loss_alerted = False
+_daily_loss_check_date = None
+
+def check_daily_loss_limit(ibkr):
+    global _daily_loss_alerted, _daily_loss_check_date
+    from datetime import datetime as _dt
+    today = _dt.now().date()
+    if _daily_loss_check_date != today:
+        _daily_loss_alerted = False
+        _daily_loss_check_date = today
+    try:
+        import requests, os
+        headers = {"APCA-API-KEY-ID": os.getenv("ALPACA_API_KEY"), "APCA-API-SECRET-KEY": os.getenv("ALPACA_SECRET_KEY")}
+        r = requests.get("https://api.alpaca.markets/v2/account/portfolio/history?period=1D&timeframe=1H", headers=headers, timeout=10)
+        data = r.json()
+        equity = [e for e in data.get("equity", []) if e]
+        if len(equity) >= 2:
+            day_open = equity[0]
+            current = equity[-1]
+            day_change_pct = ((current - day_open) / day_open) * 100
+            if day_change_pct <= -config.MAX_DAILY_LOSS_PCT:
+                if not _daily_loss_alerted:
+                    log.warning(f"DAILY LOSS LIMIT HIT: {day_change_pct:.2f}% - blocking new entries")
+                    try:
+                        from notifier import _send
+                        _send(f"DAILY LOSS LIMIT\nDown {day_change_pct:.2f}% today\nNew entries paused")
+                    except: pass
+                    _daily_loss_alerted = True
+                return True
+        return False
+    except Exception as e:
+        log.error(f"Daily loss check error: {e}")
+        return False
+
 def run_stock_scan(ibkr, stock_analyzer, pt):
     global _trade_cooldown
     # Load existing stock positions from state
@@ -192,6 +228,9 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
         return [], []
     if not is_stock_market_bullish(ibkr):
         log.info("── Stock scan — SKIPPING NEW BUYS (SPY bearish)")
+        return [], []
+    if check_daily_loss_limit(ibkr):
+        log.info("── Stock scan — SKIPPING NEW BUYS (daily loss limit)")
         return [], []
     log.info(f"── Stock scan — {len(config.STOCK_SYMBOLS)} symbols")
     # No time-based cooldown — daily loss limit is the safety net

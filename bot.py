@@ -659,15 +659,20 @@ def run_options_scan(options_client, options_analyzer, stock_signals, pt):
             if opt_signal["confidence"] < config.MIN_CONFIDENCE:
                 continue
             direction = "call" if "call" in opt_signal["strategy"] else "put"
-            # Use real Tastytrade buying power for dynamic options budget
+            # Position sizing: max 30% of TOTAL options account per contract (not 80% of BP)
             try:
                 from tastytrade_client import TastytradeClient as _TT
                 _tt = _TT()
                 _bp = _tt.get_buying_power()
-                budget = min(int(_bp * 0.8), 1000) if _bp > 50 else 0
+                _total = _tt.get_account_balance()
+                # Cap at 30% of total account, leave $50 BP buffer, hard ceiling $600
+                per_contract_max = int(_total * 0.30)
+                budget = min(per_contract_max, max(0, int(_bp) - 50), 600) if _bp > 50 else 0
             except:
-                budget = 1000 if config.IS_LIVE else 250
-            log.info(f"Options budget: ${budget:.0f} (buying power: ${_bp:.0f})")
+                budget = 250 if config.IS_LIVE else 100
+                _bp = budget
+                _total = budget
+            log.info(f"Options budget: ${budget:.0f} | total=${_total:.0f} | BP=${_bp:.0f} | max_per_contract=30%")
             # Earnings calendar: use weekly options if earnings within 7 days
             expiry_days, expiry_reason = get_options_expiry_days(symbol)
             if has_earnings_soon(symbol):
@@ -1003,13 +1008,20 @@ def run_earnings_options_scan(options_client, ibkr):
             log.info(f"🎯 EARNINGS PLAY: {symbol} reports in {dte} days — looking for call...")
 
             # Use 30-day expiry for earnings plays (capture full move)
-            # Check available buying power before ordering
+            # Position sizing: max 30% of TOTAL options account per earnings play
             try:
-                tt_bp = options_client.tt.get_account_balance() if options_client.tt else 0
-                available_bp = tt_bp * 0.85  # use max 85% of buying power
+                tt_total = options_client.tt.get_account_balance() if options_client.tt else 0
+                tt_bp_avail = options_client.tt.get_buying_power() if options_client.tt else 0
+                # Cap at 30% of total, must have BP, hard ceiling $600
+                per_contract_max = int(tt_total * 0.30)
+                ep_budget = min(per_contract_max, max(0, int(tt_bp_avail) - 50), 600)
             except:
-                available_bp = 500
-            contract = options_client.find_best_option(symbol, "call", budget=min(1000, available_bp * 1.15))  # use full balance for earnings plays
+                ep_budget = 200
+            log.info(f"Earnings play {symbol}: budget=${ep_budget} (30% of total account)")
+            if ep_budget < 50:
+                log.warning(f"Earnings play {symbol}: budget too low (${ep_budget}), skipping")
+                continue
+            contract = options_client.find_best_option(symbol, "call", budget=ep_budget)
             if not contract:
                 log.info(f"Earnings play {symbol}: no suitable contract found")
                 continue

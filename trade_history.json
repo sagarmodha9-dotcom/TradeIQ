@@ -207,5 +207,29 @@
     "closed_at": "2026-05-01T14:18:12.438630",
     "date": "2026-05-01",
     "saved_at": "2026-05-01T18:18:12.438990+00:00"
+  },
+  {
+    "product_id": "NFLX  260515C00096000",
+    "underlying": "NFLX",
+    "strategy": "buy_call",
+    "side": "BUY",
+    "entry_price": 1.24,
+    "quantity": 1,
+    "usd_value": 124.0,
+    "stop_loss": 0,
+    "take_profit": 0,
+    "confidence": 0.72,
+    "reasoning": "Synced from Tastytrade on startup",
+    "opened_at": "2026-05-01T14:20:44.756546",
+    "market": "options",
+    "pnl_usd": -48.0,
+    "current_price": 0.76,
+    "last_close_attempt": "2026-05-01T16:15:30.714412",
+    "status": "closed_sl",
+    "exit_price": 0.76,
+    "pnl_pct": -38.70967741935484,
+    "closed_at": "2026-05-01T16:15:42.227007",
+    "date": "2026-05-01",
+    "saved_at": "2026-05-01T20:15:42.227577+00:00"
   }
 ]

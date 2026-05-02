@@ -14,7 +14,8 @@
     "confidence": 0.72,
     "reasoning": "Manually closed - swing call",
     "opened_at": "2026-04-30T19:00:00",
-    "closed_at": "2026-05-01T16:52:33.315020+00:00"
+    "closed_at": "2026-05-01T16:52:33.315020+00:00",
+    "date": "2026-05-01"
   },
   {
     "product_id": "AMZN  260511C00275000",
@@ -31,7 +32,8 @@
     "confidence": 0.72,
     "reasoning": "Manually closed - swing call",
     "opened_at": "2026-05-01T13:00:00",
-    "closed_at": "2026-05-01T16:52:33.314879+00:00"
+    "closed_at": "2026-05-01T16:52:33.314879+00:00",
+    "date": "2026-05-01"
   },
   {
     "product_id": "AAPL  260515C00280000",
@@ -48,7 +50,8 @@
     "confidence": 0.75,
     "reasoning": "AAPL earnings play - manually closed after earnings beat",
     "opened_at": "2026-04-30T19:25:00",
-    "closed_at": "2026-05-01T13:54:56.605463+00:00"
+    "closed_at": "2026-05-01T13:54:56.605463+00:00",
+    "date": "2026-05-01"
   },
   {
     "product_id": "NVDA",
@@ -183,53 +186,5 @@
     "closed_at": "2026-04-27T09:30:24.067755",
     "date": "2026-04-27",
     "saved_at": "2026-04-27T13:30:24.068358+00:00"
-  },
-  {
-    "product_id": "NFLX  260515C00096000",
-    "underlying": "NFLX",
-    "strategy": "buy_call",
-    "side": "BUY",
-    "entry_price": 1.24,
-    "quantity": 1,
-    "usd_value": 124.0,
-    "stop_loss": 0,
-    "take_profit": 0,
-    "confidence": 0.72,
-    "reasoning": "Synced from Tastytrade on startup",
-    "opened_at": "2026-04-30T13:26:41.993166",
-    "market": "options",
-    "pnl_usd": -38.0,
-    "current_price": 0.86,
-    "last_close_attempt": "2026-05-01T14:18:00.641537",
-    "status": "closed_sl",
-    "exit_price": 0.86,
-    "pnl_pct": -30.64516129032258,
-    "closed_at": "2026-05-01T14:18:12.438630",
-    "date": "2026-05-01",
-    "saved_at": "2026-05-01T18:18:12.438990+00:00"
-  },
-  {
-    "product_id": "NFLX  260515C00096000",
-    "underlying": "NFLX",
-    "strategy": "buy_call",
-    "side": "BUY",
-    "entry_price": 1.24,
-    "quantity": 1,
-    "usd_value": 124.0,
-    "stop_loss": 0,
-    "take_profit": 0,
-    "confidence": 0.72,
-    "reasoning": "Synced from Tastytrade on startup",
-    "opened_at": "2026-05-01T14:20:44.756546",
-    "market": "options",
-    "pnl_usd": -48.0,
-    "current_price": 0.76,
-    "last_close_attempt": "2026-05-01T16:15:30.714412",
-    "status": "closed_sl",
-    "exit_price": 0.76,
-    "pnl_pct": -38.70967741935484,
-    "closed_at": "2026-05-01T16:15:42.227007",
-    "date": "2026-05-01",
-    "saved_at": "2026-05-01T20:15:42.227577+00:00"
   }
 ]

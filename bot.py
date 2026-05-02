@@ -455,6 +455,12 @@ def monitor_stock_positions(ibkr, pt):
 
                 if current <= sl:
                     log.info(f"❌ STOCK SL HIT {symbol} @ ${current:.2f} PnL: ${pnl:.2f}")
+                    # Verify sell actually executed before logging close
+                    _sl_sell = ibkr.place_market_order(symbol, "sell", qty=float(pos["quantity"]))
+                    if not _sl_sell or (isinstance(_sl_sell, dict) and not _sl_sell.get("id")):
+                        log.warning(f"⚠️ STOCK SL {symbol}: sell rejected/failed — NOT logging phantom close")
+                        _trade_cooldown[symbol] = datetime.now()
+                        continue
                     _trade_cooldown[symbol] = datetime.now()
                     try:
                         import json as _cj, os as _os
@@ -463,7 +469,6 @@ def monitor_stock_positions(ibkr, pt):
                         _cd[symbol] = datetime.now().isoformat()
                         _cj.dump(_cd, open(_cf, "w"))
                     except: pass
-                    ibkr.place_market_order(symbol, "sell", qty=float(pos["quantity"]))
                     from trade_history import save_trade
                     save_trade({"product_id": symbol, "side": "BUY", "entry_price": entry,
                                 "exit_price": current, "pnl_usd": round(pnl, 4),
@@ -479,6 +484,12 @@ def monitor_stock_positions(ibkr, pt):
                     closed.append(symbol)
                 elif current >= tp:
                     log.info(f"✅ STOCK TP HIT {symbol} @ ${current:.2f} PnL: ${pnl:.2f}")
+                    # Verify sell actually executed before logging close
+                    _tp_sell = ibkr.place_market_order(symbol, "sell", qty=float(pos["quantity"]))
+                    if not _tp_sell or (isinstance(_tp_sell, dict) and not _tp_sell.get("id")):
+                        log.warning(f"⚠️ STOCK TP {symbol}: sell rejected/failed — NOT logging phantom close")
+                        _trade_cooldown[symbol] = datetime.now()
+                        continue
                     _trade_cooldown[symbol] = datetime.now()
                     try:
                         import json as _cj, os as _os
@@ -487,7 +498,6 @@ def monitor_stock_positions(ibkr, pt):
                         _cd[symbol] = datetime.now().isoformat()
                         _cj.dump(_cd, open(_cf, "w"))
                     except: pass
-                    ibkr.place_market_order(symbol, "sell", qty=float(pos["quantity"]))
                     from trade_history import save_trade
                     save_trade({"product_id": symbol, "side": "BUY", "entry_price": entry,
                                 "exit_price": current, "pnl_usd": round(pnl, 4),
@@ -605,9 +615,16 @@ def monitor_option_positions(options_client):
                                 log.error(f"Options close order failed: {ce}")
                                 return  # Don't write phantom trade
                             
-                            # Check if sell actually succeeded
-                            if not sell_result or (isinstance(sell_result, dict) and not sell_result.get("success")):
-                                log.warning(f"⚠️ OPTIONS CLOSE {p['product_id']}: sell failed — NOT logging phantom close, will retry after cooldown")
+                            # Check if sell ACTUALLY FILLED (not just submitted)
+                            # success=True means order was placed; filled=True means it actually filled
+                            if not sell_result or not isinstance(sell_result, dict):
+                                log.warning(f"⚠️ OPTIONS CLOSE {p['product_id']}: sell returned no result — NOT logging phantom close")
+                                return
+                            if not sell_result.get("success"):
+                                log.warning(f"⚠️ OPTIONS CLOSE {p['product_id']}: sell rejected — NOT logging phantom close")
+                                return
+                            if sell_result.get("filled") is False:
+                                log.warning(f"⚠️ OPTIONS CLOSE {p['product_id']}: order placed but NOT FILLED yet — NOT logging phantom close, will retry after cooldown")
                                 return
                             
                             # Sell confirmed - log it properly

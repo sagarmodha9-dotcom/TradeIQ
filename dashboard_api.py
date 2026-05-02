@@ -219,11 +219,24 @@ def get_status():
                 pass
         enriched_positions.append(pos)
 
-    # P&L calculations
+    # P&L calculations - clear separation of concepts
     import trade_history as _th
-    daily_closed_pnl = _th.get_daily_summary().get("total_pnl", 0)
-    open_pnl         = sum(p.get("pnl_usd", 0) for p in enriched_positions)
-    daily_pnl        = round(daily_closed_pnl + open_pnl, 2)
+    
+    # Today's REALIZED (closed today)
+    today_realized = _th.get_daily_summary().get("total_pnl", 0)
+    
+    # Currently OPEN unrealized P&L
+    open_unrealized = sum(p.get("pnl_usd", 0) for p in enriched_positions)
+    
+    # LIFETIME realized (sum of ALL closed trades ever)
+    lifetime_realized = sum(float(t.get("pnl_usd", 0)) for t in closed)
+    
+    # Today total = today's realized + today's unrealized changes (good for "today P&L" widget)
+    daily_pnl = round(today_realized + open_unrealized, 2)
+    
+    # Total P&L for the dashboard = lifetime realized + currently open unrealized
+    # This is the "true overall performance" number
+    total_pnl = round(lifetime_realized + open_unrealized, 2)
 
     options_positions = [p for p in enriched_positions if p.get("market") == "options"]
     stock_positions   = [p for p in enriched_positions if p.get("market") == "stocks"]
@@ -248,8 +261,11 @@ def get_status():
         "portfolio_usd":     round(total_portfolio, 2),
         "stock_portfolio":   round(alpaca_balance, 2),
         "options_portfolio": round(tt_balance, 2),
-        "total_pnl":         daily_pnl,
+        "total_pnl":         total_pnl,
         "daily_pnl":         daily_pnl,
+        "today_realized":    round(today_realized, 2),
+        "lifetime_realized": round(lifetime_realized, 2),
+        "open_unrealized":   round(open_unrealized, 2),
         "options_pnl":       options_pnl,
         "stock_pnl":         stock_pnl,
         "win_rate":          win_rate,

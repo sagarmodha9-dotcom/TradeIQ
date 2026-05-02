@@ -1277,6 +1277,7 @@ def main():
         log.info(f"Next scan in {config.SCAN_INTERVAL}s. Ctrl+C to stop.\n")
         for _ in range(config.SCAN_INTERVAL):
             if not _running: break
+            global _immediate_redeploy
             if _immediate_redeploy:
                 _immediate_redeploy = False
                 log.info("⚡ INSTANT REDEPLOY — skipping wait, scanning now")

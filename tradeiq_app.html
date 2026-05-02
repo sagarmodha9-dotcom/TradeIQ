@@ -497,6 +497,34 @@ setInterval(rmFetch, 15000);
     <div class="hcc-hdr"><span class="hcc-tit">Portfolio Performance</span><span style="font-size:11px;color:var(--text3);font-family:var(--mono)" id="hchartts">—</span></div>
     <div class="hcc-wrap"><canvas id="hchart"></canvas></div>
   </div>
+  <div class="hcard" style="margin-bottom:14px">
+    <div class="hcard-tit" style="display:flex;justify-content:space-between;align-items:center">
+      <span>Strategy Health</span>
+      <span id="sh-warning" style="font-size:10px;padding:2px 8px;border-radius:4px;font-family:var(--mono)">—</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px">
+      <div style="text-align:center;padding:10px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
+        <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:4px">PROFIT FACTOR</div>
+        <div id="sh-pf" style="font-size:22px;font-weight:700;color:var(--text)">—</div>
+        <div style="font-size:9px;color:var(--text3);margin-top:2px">need &gt;1.5</div>
+      </div>
+      <div style="text-align:center;padding:10px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
+        <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:4px">EXPECTANCY</div>
+        <div id="sh-exp" style="font-size:22px;font-weight:700;color:var(--text)">—</div>
+        <div style="font-size:9px;color:var(--text3);margin-top:2px">per trade</div>
+      </div>
+      <div style="text-align:center;padding:10px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
+        <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:4px">MAX DRAWDOWN</div>
+        <div id="sh-dd" style="font-size:22px;font-weight:700;color:var(--text)">—</div>
+        <div id="sh-dd-pct" style="font-size:9px;color:var(--text3);margin-top:2px">—</div>
+      </div>
+      <div style="text-align:center;padding:10px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
+        <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:4px">CURRENT STREAK</div>
+        <div id="sh-streak" style="font-size:22px;font-weight:700;color:var(--text)">—</div>
+        <div id="sh-streak-sub" style="font-size:9px;color:var(--text3);margin-top:2px">—</div>
+      </div>
+    </div>
+  </div>
   <div class="hgrid">
     <div class="hcard"><div class="hcard-tit">Open Positions <span class="hcnt" id="hposcnt">0</span></div><div id="hpositions"><div class="empty-msg">No open positions</div></div></div>
     <div class="hcard"><div class="hcard-tit">Recent Trades <span class="hcnt" id="htradescnt">0</span></div><div id="htrades"><div class="empty-msg">No closed trades yet<br>Yesterday's trades will appear here</div></div></div>
@@ -1034,7 +1062,100 @@ function goPage(p){
   if(p==="analytics")loadAnalytics();
   if(p==="signals")loadSignals();document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));document.querySelectorAll('.nbtn').forEach(e=>e.classList.remove('active'));document.getElementById('page-'+p).classList.add('active');document.getElementById('nav-'+p).classList.add('active');if(p==='analytics')fetchAnalytics();if(p==='intelligence')fetchIntelligence();}
 function setOnline(ok){document.getElementById('nconn').className='nconn'+(ok?' on':'');document.getElementById('hconn').textContent=ok?'ONLINE':'OFFLINE';document.getElementById('hconn').className='stag '+(ok?'ton':'toff')}
-async function fetchStatus(){try{const r=await fetch(API+'/status',{signal:AbortSignal.timeout(15000)});if(!r.ok)throw new Error();const d=await r.json();lastD=d;setOnline(true);try{localStorage.setItem("tiq_cache",JSON.stringify(d));}catch(e){}try{renderAll(d);}catch(re){console.error('renderAll error:',re);}}catch(e){console.error('fetch error:',e);setOnline(false);}}
+async function fetchStrategyHealth(){
+  try {
+    const r = await fetch(API + '/metrics', {signal: AbortSignal.timeout(10000)});
+    if (!r.ok) return;
+    const m = await r.json();
+    const ov = m.overall || {};
+    const dd = m.drawdown || {};
+    const st = m.streaks || {};
+    
+    // Profit Factor
+    const pf = ov.profit_factor;
+    const pfEl = document.getElementById('sh-pf');
+    if (pfEl) {
+      if (pf === 'infinite' || pf === null || pf === undefined) {
+        pfEl.textContent = '—';
+        pfEl.style.color = 'var(--text3)';
+      } else {
+        pfEl.textContent = Number(pf).toFixed(2);
+        pfEl.style.color = pf >= 1.5 ? 'var(--green)' : pf >= 1.0 ? 'var(--amber)' : 'var(--red)';
+      }
+    }
+    
+    // Expectancy
+    const exp = ov.expectancy_per_trade || 0;
+    const expEl = document.getElementById('sh-exp');
+    if (expEl) {
+      expEl.textContent = (exp >= 0 ? '+$' : '-$') + Math.abs(exp).toFixed(2);
+      expEl.style.color = exp >= 0 ? 'var(--green)' : 'var(--red)';
+    }
+    
+    // Max Drawdown
+    const ddEl = document.getElementById('sh-dd');
+    const ddPctEl = document.getElementById('sh-dd-pct');
+    if (ddEl) {
+      const ddVal = dd.max_drawdown || 0;
+      ddEl.textContent = '-$' + ddVal.toFixed(2);
+      ddEl.style.color = ddVal > 0 ? 'var(--red)' : 'var(--text)';
+    }
+    if (ddPctEl) {
+      ddPctEl.textContent = (dd.max_drawdown_pct || 0).toFixed(1) + '% peak';
+    }
+    
+    // Current Streak
+    const streakEl = document.getElementById('sh-streak');
+    const streakSubEl = document.getElementById('sh-streak-sub');
+    if (streakEl) {
+      const s = st.current_streak || 0;
+      if (s > 0) {
+        streakEl.textContent = s + 'W';
+        streakEl.style.color = 'var(--green)';
+      } else if (s < 0) {
+        streakEl.textContent = Math.abs(s) + 'L';
+        streakEl.style.color = 'var(--red)';
+      } else {
+        streakEl.textContent = '—';
+        streakEl.style.color = 'var(--text3)';
+      }
+    }
+    if (streakSubEl) {
+      streakSubEl.textContent = 'best ' + (st.max_consecutive_wins || 0) + 'W / worst ' + (st.max_consecutive_losses || 0) + 'L';
+    }
+    
+    // Sample Warning
+    const wEl = document.getElementById('sh-warning');
+    if (wEl) {
+      const warn = ov.sample_warning || 'NO_DATA';
+      const tradeCount = ov.trade_count || 0;
+      if (warn === 'INSUFFICIENT_DATA') {
+        wEl.textContent = '⚠️ ' + tradeCount + ' trades - need 10+';
+        wEl.style.background = 'rgba(239,68,68,0.15)';
+        wEl.style.color = 'var(--red)';
+        wEl.style.border = '1px solid var(--rbdr)';
+      } else if (warn === 'LOW_CONFIDENCE') {
+        wEl.textContent = '⚠️ low confidence (' + tradeCount + ' trades)';
+        wEl.style.background = 'rgba(245,158,11,0.15)';
+        wEl.style.color = 'var(--amber)';
+      } else if (warn === 'MODERATE_CONFIDENCE') {
+        wEl.textContent = 'moderate (' + tradeCount + ' trades)';
+        wEl.style.background = 'rgba(59,130,246,0.15)';
+        wEl.style.color = 'var(--blue)';
+      } else if (warn === 'RELIABLE') {
+        wEl.textContent = '✓ reliable (' + tradeCount + ' trades)';
+        wEl.style.background = 'rgba(0,230,118,0.15)';
+        wEl.style.color = 'var(--green)';
+      } else {
+        wEl.textContent = '—';
+      }
+    }
+  } catch(e) {
+    console.error('Strategy health fetch error:', e);
+  }
+}
+
+async function fetchStatus(){try{const r=await fetch(API+'/status',{signal:AbortSignal.timeout(15000)});if(!r.ok)throw new Error();const d=await r.json();lastD=d;setOnline(true);try{localStorage.setItem("tiq_cache",JSON.stringify(d));}catch(e){}try{renderAll(d);}catch(re){console.error('renderAll error:',re);}fetchStrategyHealth();}catch(e){console.error('fetch error:',e);setOnline(false);}}
 function renderAll(d){
   const cp=d.options_portfolio||0,sp=d.stock_portfolio||0,total=d.portfolio_usd||0;
   const cpnl=d.options_pnl||0,spnl=d.stock_pnl||0,tpnl=d.total_pnl||0;

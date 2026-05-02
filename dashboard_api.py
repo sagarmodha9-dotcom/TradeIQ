@@ -176,48 +176,133 @@ def get_status():
     tt_balance      = _balance_cache["tt"]
     total_portfolio = alpaca_balance + tt_balance
 
-    # Live positions with real-time PnL
-    positions = state.get("positions", [])
+    # Live positions DIRECTLY from brokers (Alpaca + Tastytrade), with bot metadata merged in
     enriched_positions = []
-    # Get live option prices from Tastytrade
-    try:
-        from tastytrade_client import TastytradeClient
-        _tt_live = TastytradeClient()
-    except:
-        _tt_live = None
-    # Get live stock prices from Alpaca
+    
+    # Build lookup of bot_state metadata by product_id (for confidence, reasoning, strategy)
+    bot_state_meta = {}
+    for p in state.get("positions", []):
+        pid = str(p.get("product_id", "")).strip()
+        if pid:
+            bot_state_meta[pid] = {
+                "entry_price": p.get("entry_price"),
+                "confidence": p.get("confidence"),
+                "reasoning": p.get("reasoning"),
+                "strategy": p.get("strategy"),
+                "key_signals": p.get("key_signals", []),
+                "indicators": p.get("indicators", {}),
+                "stop_loss": p.get("stop_loss"),
+                "take_profit": p.get("take_profit"),
+                "opened_at": p.get("opened_at"),
+                "last_close_attempt": p.get("last_close_attempt"),
+            }
+    
+    # 1. Live STOCK positions from Alpaca
     try:
         from alpaca_client import AlpacaClient
         _ac_live = AlpacaClient()
-    except:
-        _ac_live = None
-
-    for p in positions:
-        pos = dict(p)
-        pid = p.get("product_id", "")
-        entry = float(p.get("entry_price", 0))
-        if p.get("market") == "stocks":
-            # Live stock price from Alpaca
+        alpaca_positions = _ac_live.get_positions()
+        for ap in alpaca_positions:
+            sym = ap.get("symbol", "").strip()
+            entry = float(ap.get("avg_entry_price", 0))
+            qty = float(ap.get("qty", 0))
+            current = float(ap.get("current_price", 0))
+            pnl = float(ap.get("unrealized_pl", 0))
+            pnl_pct = (pnl / (entry * qty) * 100) if (entry * qty) > 0 else 0
+            
+            meta = bot_state_meta.get(sym, {})
+            pos = {
+                "product_id": sym,
+                "underlying": sym,
+                "broker": "alpaca",
+                "market": "stocks",
+                "side": "BUY",
+                "entry_price": round(entry, 2),
+                "quantity": qty,
+                "current_price": round(current, 2),
+                "usd_value": round(qty * current, 2),
+                "pnl_usd": round(pnl, 2),
+                "pnl_pct": round(pnl_pct, 2),
+                "stop_loss": meta.get("stop_loss"),
+                "take_profit": meta.get("take_profit"),
+                "confidence": meta.get("confidence"),
+                "reasoning": meta.get("reasoning"),
+                "strategy": meta.get("strategy"),
+                "opened_at": meta.get("opened_at"),
+            }
+            enriched_positions.append(pos)
+    except Exception as _e:
+        # Fallback: use bot_state stocks
+        for p in state.get("positions", []):
+            if p.get("market") == "stocks":
+                pos = dict(p)
+                pos["broker"] = "alpaca"
+                enriched_positions.append(pos)
+    
+    # 2. Live OPTIONS positions from Tastytrade
+    try:
+        from tastytrade_client import TastytradeClient
+        import requests as _req
+        _tt_live = TastytradeClient()
+        _tt_headers = {'Authorization': _tt_live.session_token}
+        _r = _req.get(f'{_tt_live.base_url}/accounts/{_tt_live.account_number}/positions', headers=_tt_headers, timeout=10)
+        _tt_data = _r.json().get('data', {}).get('items', [])
+        for tp in _tt_data:
+            sym = str(tp.get("symbol", "")).strip()
+            qty = float(tp.get("quantity", 0))
+            if qty == 0:
+                continue
+            # Try to get entry from bot_state first (most reliable), fall back to broker
+            meta = bot_state_meta.get(sym, {})
+            entry_raw = float(tp.get("average-open-price", 0))
+            # Tastytrade returns the per-share price (premium); contracts are 100x
+            # Heuristic: if the value looks like dollars (typical option premium 0.10-50), use as-is
+            #            if it looks inflated by 100x (e.g. 124 for a $1.24 option), divide
+            entry = entry_raw if 0 < entry_raw < 100 else entry_raw / 100
+            # Prefer bot_state entry if available (most reliable)
+            if meta.get("entry_price"):
+                bs_entry = float(meta.get("entry_price", 0))
+                if bs_entry > 0:
+                    entry = bs_entry
+            
+            # Get live price
             try:
-                if _ac_live:
-                    live_price = _ac_live.get_latest_price(pid.strip())
-                    if live_price > 0:
-                        qty = float(p.get("quantity", 0))
-                        pos["current_price"] = live_price
-                        pos["pnl_usd"] = round((live_price - entry) * qty, 2)
+                live_price = _tt_live.get_option_price(sym)
             except:
-                pass
-        else:
-            # Live option price from Tastytrade
-            try:
-                if _tt_live:
-                    live_price = _tt_live.get_option_price(pid.strip())
-                    if live_price > 0:
-                        pos["current_price"] = live_price
-                        pos["pnl_usd"] = round((live_price - entry) * 100, 2)
-            except:
-                pass
-        enriched_positions.append(pos)
+                live_price = 0
+            
+            current_pnl = (live_price - entry) * 100 * qty if live_price > 0 else 0
+            pnl_pct = ((live_price - entry) / entry * 100) if entry > 0 else 0
+            
+            underlying = sym.split()[0].strip() if sym else ""
+            
+            pos = {
+                "product_id": sym,
+                "underlying": underlying,
+                "broker": "tastytrade",
+                "market": "options",
+                "side": "BUY",
+                "entry_price": round(entry, 2),
+                "quantity": qty,
+                "current_price": round(live_price, 2),
+                "usd_value": round(live_price * 100 * qty, 2),
+                "pnl_usd": round(current_pnl, 2),
+                "pnl_pct": round(pnl_pct, 2),
+                "stop_loss": meta.get("stop_loss"),
+                "take_profit": meta.get("take_profit"),
+                "confidence": meta.get("confidence"),
+                "reasoning": meta.get("reasoning"),
+                "strategy": meta.get("strategy"),
+                "opened_at": meta.get("opened_at"),
+            }
+            enriched_positions.append(pos)
+    except Exception as _e:
+        # Fallback: use bot_state options
+        for p in state.get("positions", []):
+            if p.get("market") == "options":
+                pos = dict(p)
+                pos["broker"] = "tastytrade"
+                enriched_positions.append(pos)
 
     # P&L calculations - clear separation of concepts
     import trade_history as _th

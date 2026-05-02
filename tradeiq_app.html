@@ -1060,10 +1060,14 @@ function renderHome(d,cp,sp,total,cpnl,spnl,tpnl){
   document.getElementById('hscan').textContent=d.scanned_at?new Date(d.scanned_at).toLocaleTimeString():'—';
   document.getElementById('hmode').textContent=d.mode==='live'?'LIVE':'PAPER';document.getElementById('hmode').className='stag '+(d.mode==='live'?'tlive':'tpaper');
   document.getElementById('htotal').textContent='$'+total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-  // Use daily P&L from risk endpoint for "today" display
-  const dailyPnlToday = d.stock_pnl || 0;  // stocks only, options separate
+  // Today's P&L = realized today + change in open unrealized
+  const todayRealized = d.today_realized || 0;
+  const openUnrealized = d.open_unrealized !== undefined ? d.open_unrealized : (d.daily_pnl || 0);
+  const dailyPnlToday = todayRealized + openUnrealized;
   const hce=document.getElementById('htotalchg');hce.textContent=pf(dailyPnlToday)+' today';hce.className='hero-chg '+pc(dailyPnlToday);
-  document.getElementById('hcval').textContent='$'+cp.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});document.getElementById('hoval').textContent='$'+cp.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});const hopEl=document.getElementById('hopnl');if(hopEl){hopEl.textContent='P&L: '+pf(cpnl);hopEl.className='hsc-pnl '+pc(cpnl);}
+  document.getElementById('hcval').textContent='$'+cp.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  document.getElementById('hoval').textContent='$'+cp.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const hopEl=document.getElementById('hopnl');if(hopEl){hopEl.textContent='P&L: '+pf(cpnl);hopEl.className='hsc-pnl '+pc(cpnl);}
   const hcpEl=document.getElementById('hcpnl');hcpEl.textContent='P&L: '+pf(cpnl);hcpEl.className='hsc-pnl '+pc(cpnl);
   document.getElementById('hsval').textContent='$'+sp.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
   const hspEl=document.getElementById('hspnl');hspEl.textContent='P&L: '+pf(spnl);hspEl.className='hsc-pnl '+pc(spnl);

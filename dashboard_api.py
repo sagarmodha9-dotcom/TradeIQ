@@ -371,6 +371,12 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/status":
             self._json(get_status())
+        elif path == "/metrics":
+            try:
+                import metrics as _m
+                self._json(_m.get_full_metrics())
+            except Exception as e:
+                self._json({"error": str(e)}, 500)
         elif path == "/health":
             self._json({"ok": True})
         elif path == "/chart/crypto":
@@ -585,6 +591,7 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self._json({"status": "ok"})
     def log_message(self, fmt, *args): pass
+
 
 if __name__ == "__main__":
     server = HTTPServer(("0.0.0.0", 8081), Handler)

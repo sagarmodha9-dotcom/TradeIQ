@@ -48,6 +48,13 @@ def print_banner(is_live):
     print(f"  Crypto: top {config.TOP_PAIRS_COUNT} pairs | Stocks: {len(config.STOCK_SYMBOLS)} symbols")
     print(f"  SL: {config.STOP_LOSS_PCT:.0%}  TP: {config.TAKE_PROFIT_PCT:.0%}  Min conf: {config.MIN_CONFIDENCE:.0%}")
     print("="*60 + "\n")
+    # Telegram ping on every startup so user knows if launchd restarts the bot
+    try:
+        from notifier import _send
+        from datetime import datetime as _dt
+        _send(f"🟢 <b>BOT STARTED</b>\nMode: {mode}\nTime: {_dt.now().strftime('%Y-%m-%d %H:%M:%S')}\nIf you didn't restart it manually, launchd auto-restarted (possible crash).")
+    except Exception as _be:
+        pass  # don't crash bot if telegram unavailable
 
 def save_state(stock_signals, positions, pt):
     try:

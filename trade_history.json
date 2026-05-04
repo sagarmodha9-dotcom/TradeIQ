@@ -1,5 +1,37 @@
 [
   {
+    "product_id": "JPM",
+    "side": "BUY",
+    "entry_price": 313.212,
+    "exit_price": 307.014,
+    "quantity": 0.639311392,
+    "pnl_usd": -3.9625,
+    "pnl_pct": -1.98,
+    "status": "closed_time_exit",
+    "market": "stocks",
+    "broker": "alpaca",
+    "opened_at": "2026-04-30T17:25:18Z",
+    "closed_at": "2026-05-04T15:42:59Z",
+    "date": "2026-05-04",
+    "note": "Manually added 5/4 PM session - bot didn't log this exit"
+  },
+  {
+    "product_id": "AMZN",
+    "side": "BUY",
+    "entry_price": 264.816,
+    "exit_price": 272.874,
+    "quantity": 0.762340644,
+    "pnl_usd": 6.1429,
+    "pnl_pct": 3.04,
+    "status": "closed_time_exit",
+    "market": "stocks",
+    "broker": "alpaca",
+    "opened_at": "2026-05-01T13:47:41Z",
+    "closed_at": "2026-05-04T14:34:37Z",
+    "date": "2026-05-04",
+    "note": "Manually added 5/4 PM session - bot didn't log this exit"
+  },
+  {
     "product_id": "SNAP",
     "side": "BUY",
     "entry_price": 6.175,

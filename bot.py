@@ -594,7 +594,24 @@ def monitor_option_positions(options_client):
 
                         def _close_option(reason):
                             # Cooldown: don't retry close for 5 min after failed attempt
-                            from datetime import datetime as _dt
+                            from datetime import datetime as _dt, timedelta as _td
+                            
+                            # Hard block: after 3 consecutive failures, block for 1 hour and alert
+                            blocked_until = p.get("close_blocked_until")
+                            if blocked_until:
+                                try:
+                                    bu_dt = _dt.fromisoformat(blocked_until.replace("Z",""))
+                                    if _dt.now() < bu_dt:
+                                        log.info(f"OPTIONS {p['product_id']}: close BLOCKED until {blocked_until[:19]} (3 consecutive fails)")
+                                        return
+                                    else:
+                                        # Block expired, reset
+                                        p["close_blocked_until"] = None
+                                        p["close_failures"] = 0
+                                except:
+                                    pass
+                            
+                            # Soft cooldown: 5 min between attempts
                             last_attempt = p.get("last_close_attempt")
                             if last_attempt:
                                 try:
@@ -607,27 +624,53 @@ def monitor_option_positions(options_client):
                                     pass
                             p["last_close_attempt"] = _dt.now().isoformat()
                             
+                            def _record_failure(reason_text):
+                                p["close_failures"] = p.get("close_failures", 0) + 1
+                                log.warning(f"⚠️ OPTIONS CLOSE {p['product_id']}: {reason_text} (failure {p['close_failures']}/3)")
+                                if p["close_failures"] >= 3:
+                                    p["close_blocked_until"] = (_dt.now() + _td(hours=1)).isoformat()
+                                    log.error(f"🛑 OPTIONS {p['product_id']}: 3 consecutive close failures — BLOCKING for 1 hour")
+                                    try:
+                                        from notifier import _send
+                                        _send(f"🛑 <b>OPTIONS CLOSE BLOCKED — {p['product_id']}</b>\n3 consecutive close failures. Bot has STOPPED trying for 1 hour.\nReason: {reason_text}\nPnL: {pnl_pct:.1f}%\nManual action may be needed.")
+                                    except:
+                                        pass
+                            
                             # Attempt the sell
                             sell_result = None
                             try:
                                 sell_result = options_client.place_option_order(p["product_id"], qty=1, side="sell")
                             except Exception as ce:
                                 log.error(f"Options close order failed: {ce}")
-                                return  # Don't write phantom trade
+                                _record_failure(f"exception: {ce}")
+                                return
                             
-                            # Check if sell ACTUALLY FILLED (not just submitted)
-                            # success=True means order was placed; filled=True means it actually filled
+                            # Check if sell ACTUALLY FILLED
                             if not sell_result or not isinstance(sell_result, dict):
-                                log.warning(f"⚠️ OPTIONS CLOSE {p['product_id']}: sell returned no result — NOT logging phantom close")
+                                _record_failure("sell returned no result")
                                 return
                             if not sell_result.get("success"):
-                                log.warning(f"⚠️ OPTIONS CLOSE {p['product_id']}: sell rejected — NOT logging phantom close")
+                                _record_failure(f"sell rejected: {sell_result.get('error','unknown')}")
                                 return
                             if sell_result.get("filled") is False:
-                                log.warning(f"⚠️ OPTIONS CLOSE {p['product_id']}: order placed but NOT FILLED yet — NOT logging phantom close, will retry after cooldown")
+                                _record_failure("order placed but NOT filled within timeout")
                                 return
                             
-                            # Sell confirmed - log it properly
+                            # VERIFY position is actually gone from broker before logging close
+                            try:
+                                _broker_positions = options_client.tt.get_positions() if options_client.tt else []
+                                _still_open = any(
+                                    str(_bp.get("symbol","")).strip() == str(p["product_id"]).strip()
+                                    for _bp in (_broker_positions or [])
+                                )
+                                if _still_open:
+                                    _record_failure("broker still shows position open after sell — fill not confirmed")
+                                    return
+                            except Exception as _ve:
+                                log.warning(f"OPTIONS CLOSE {p['product_id']}: broker verification skipped ({_ve}) — proceeding cautiously")
+                            
+                            # Sell verified gone from broker - log it properly
+                            p["close_failures"] = 0
                             p["status"] = reason
                             from trade_history import save_trade
                             save_trade({**p, "exit_price": current, "pnl_usd": pnl, "pnl_pct": pnl_pct, 
@@ -638,7 +681,7 @@ def monitor_option_positions(options_client):
                                 _j.dump(state, _f, indent=2, default=str)
                             from notifier import alert_option_closed
                             alert_option_closed(p.get("underlying", p["product_id"]), p["product_id"], pnl, reason)
-                            log.info(f"OPTIONS AUTO-CLOSED: {p['product_id']} {pnl_pct:.1f}% ({reason})")
+                            log.info(f"OPTIONS AUTO-CLOSED (verified): {p['product_id']} {pnl_pct:.1f}% ({reason})")
 
                         if pnl_pct >= tp_threshold and not p.get("alerted_tp"):
                             log.info(f"OPTIONS TP HIT {p['product_id']}: +{pnl_pct:.1f}% (threshold={tp_threshold}%)")

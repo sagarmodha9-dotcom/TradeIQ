@@ -899,15 +899,32 @@ def run_scan(cb, ibkr, analyzer, stock_analyzer, tm, pt, options_client=None, op
 
 
 def sync_tastytrade_positions(options_client, pt):
-    """Sync open Tastytrade options positions into bot_state.json on startup."""
+    """Sync open Tastytrade options positions into bot_state.json on startup.
+    Removes phantom options (in bot_state but not at broker) AND adds missing ones."""
     try:
         if not options_client or not options_client.tt:
             return
-        tt_positions = options_client.tt.get_positions()
-        if not tt_positions:
-            return
+        tt_positions = options_client.tt.get_positions() or []
         with open("bot_state.json") as f:
             state = json.load(f)
+        # PHANTOM REMOVAL: drop options in bot_state that aren't at TT
+        broker_symbols = {str(bp.get("symbol","")).strip() for bp in tt_positions}
+        before_opt = len([p for p in state.get("positions",[]) if p.get("market") == "options"])
+        removed_phantoms = [p for p in state.get("positions",[]) 
+                            if p.get("market") == "options" 
+                            and str(p.get("product_id","")).strip() not in broker_symbols]
+        for ph in removed_phantoms:
+            log.warning(f"🧹 PHANTOM REMOVED on startup: {ph.get('product_id')} (was in bot_state, not at TT)")
+        state["positions"] = [p for p in state.get("positions",[]) 
+                              if p.get("market") != "options" 
+                              or str(p.get("product_id","")).strip() in broker_symbols]
+        if not tt_positions:
+            # Save phantom removals even if no TT positions to add
+            if removed_phantoms:
+                with open("bot_state.json", "w") as f:
+                    json.dump(_safe_json(state), f, indent=2)
+                log.info(f"Tastytrade sync: 0 added, {len(removed_phantoms)} phantoms removed")
+            return
         existing_ids = [p.get("product_id") for p in state.get("positions", [])]
         added = 0
         for p in tt_positions:

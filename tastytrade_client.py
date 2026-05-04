@@ -45,7 +45,7 @@ class TastytradeClient:
             if new_token:
                 self.remember_token = new_token
             if self.session_token:
-                log.info("✅ Tastytrade connected")
+                log.debug("✅ Tastytrade connected")
                 self._get_account()
             else:
                 log.error(f"Tastytrade login failed: {data}")
@@ -59,7 +59,7 @@ class TastytradeClient:
             accounts = data.get("data", {}).get("items", [])
             if accounts:
                 self.account_number = accounts[0].get("account", {}).get("account-number")
-                log.info(f"Tastytrade account: {self.account_number}")
+                log.debug(f"Tastytrade account: {self.account_number}")
         except Exception as e:
             log.error(f"Tastytrade get_account error: {e}")
 

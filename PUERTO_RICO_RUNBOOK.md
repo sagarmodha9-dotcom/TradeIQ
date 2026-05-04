@@ -181,3 +181,32 @@ launchctl start com.tradeiq.bot
 
 **Last updated:** Sat May 2, 2026
 **Next update:** Wed May 6 evening (after vacation hardening session)
+
+---
+
+## Bugs Found Monday May 4 (For Wed Session)
+
+### Bug 1: Alpaca sell response misinterpreted
+- APP/SNAP time-exit at 9:30 today — Alpaca FILLED the sell, bot logged "failed"
+- Trade history was missing both wins until manually added
+- Need to fix _sell_result interpretation in stock close paths
+- Manual fix applied: trade_history.json updated with APP +$1.58, SNAP +$1.14
+
+### Bug 2: Phantom options in monitor logs
+- Bot logs P&L for UBER/SNAP/DIS options every scan
+- Tastytrade has 0 positions
+- bot_state.json has 0 options
+- Source of phantom data unknown — needs Wednesday investigation
+- NOT actively losing money — sell attempts would fail at broker (good)
+
+### Bug 3: ROKU/COIN bought right after no-trade window
+- Bot waited until 15:42 after open then bought
+- Real fills, real positions
+- Working as intended but worth reviewing the rule
+
+### Action Items for Wed Session
+- Sync bot_state from broker truth on bot startup
+- Fix Alpaca sell response check (was over-corrected from phantom-trade fix)
+- Find source of phantom options in monitor loop
+- Add reconciliation alert if bot_state diverges from broker by >2 positions
+

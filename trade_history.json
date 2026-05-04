@@ -1,5 +1,37 @@
 [
   {
+    "product_id": "SNAP",
+    "side": "BUY",
+    "entry_price": 6.175,
+    "exit_price": 6.21,
+    "quantity": 32.695546558,
+    "pnl_usd": 1.1443,
+    "pnl_pct": 0.57,
+    "status": "closed_time_exit",
+    "market": "stocks",
+    "broker": "alpaca",
+    "opened_at": "2026-05-01T13:47:49Z",
+    "closed_at": "2026-05-04T13:31:52Z",
+    "date": "2026-05-04",
+    "note": "Manually added - bot misread sell response as failed"
+  },
+  {
+    "product_id": "APP",
+    "side": "BUY",
+    "entry_price": 461.768,
+    "exit_price": 465.378,
+    "quantity": 0.437210893,
+    "pnl_usd": 1.5783,
+    "pnl_pct": 0.78,
+    "status": "closed_time_exit",
+    "market": "stocks",
+    "broker": "alpaca",
+    "opened_at": "2026-05-01T13:47:41Z",
+    "closed_at": "2026-05-04T13:30:23Z",
+    "date": "2026-05-04",
+    "note": "Manually added - bot misread sell response as failed"
+  },
+  {
     "product_id": "BAC   260515C00055000",
     "underlying": "BAC",
     "side": "BUY",

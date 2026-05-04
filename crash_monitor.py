@@ -56,6 +56,35 @@ def alert(msg):
     except Exception as e:
         print(f"Alert send failed: {e}")
 
+def check_retry_storm():
+    """Detect retry storms: 5+ sell rejections or close failures in last 10 min.
+    Returns (storm_detected: bool, summary: str)."""
+    try:
+        # Get last 10 min of log
+        result = subprocess.run(['tail', '-2000', LOG_FILE], capture_output=True, text=True, timeout=10)
+        lines = result.stdout.split('\n')
+        # Filter to last 10 min by timestamp prefix HH:MM:SS
+        cutoff = datetime.now() - timedelta(minutes=10)
+        cutoff_str = cutoff.strftime("%H:%M:%S")
+        recent = []
+        for ln in lines:
+            if len(ln) >= 8 and ln[2] == ":" and ln[5] == ":":
+                ts = ln[:8]
+                if ts >= cutoff_str:
+                    recent.append(ln)
+        # Count problematic patterns
+        rejected = sum(1 for ln in recent if "sell rejected" in ln.lower() or "sell order failed" in ln.lower())
+        close_blocked = sum(1 for ln in recent if "OPTIONS CLOSE BLOCKED" in ln)
+        retry_close = sum(1 for ln in recent if "AUTO-CLOSE" in ln and "cutting loss" in ln)
+        bp_skipped = sum(1 for ln in recent if "insufficient buying power" in ln.lower())
+        total = rejected + retry_close
+        if total >= 5 or close_blocked >= 1:
+            return True, (f"Storm detected: {rejected} sell rejects, {retry_close} AUTO-CLOSE retries, "
+                         f"{close_blocked} blocked positions, {bp_skipped} BP skips in last 10min")
+        return False, f"Healthy: {rejected} rejects, {retry_close} retries, {bp_skipped} BP skips"
+    except Exception as e:
+        return False, f"Storm check error: {e}"
+
 def main():
     current = get_current_banner_count()
     last_count, last_time = get_last_count()
@@ -75,6 +104,13 @@ def main():
         print(f"ALERT SENT: {new_crashes} crashes in {elapsed:.1f}min")
     elif elapsed >= WINDOW_MIN:
         print(f"OK: {new_crashes} restarts in {elapsed:.1f}min (under threshold)")
+    
+    # NEW: Retry storm detection (independent of crash detection)
+    storm, summary = check_retry_storm()
+    print(f"Retry storm check: {summary}")
+    if storm:
+        alert(f"🌪️ <b>RETRY STORM DETECTED</b>\n{summary}\nBot may be stuck in failed-order loop.\nCheck dashboard or logs.")
+        print(f"STORM ALERT SENT: {summary}")
     
     save_count(current)
 

@@ -434,9 +434,23 @@ def monitor_stock_positions(ibkr, pt):
                         if (hours_open >= 4 and pnl_pct >= 3.0) or _force_exit:
                             log.info(f"⏰ TIME EXIT {symbol} @ ${current:.2f} — open {hours_open:.1f}hrs +{pnl_pct:.1f}% — taking profit")
                             _sell_result = ibkr.place_market_order(symbol, "sell", qty=float(pos["quantity"]))
-                            if not _sell_result or (isinstance(_sell_result, dict) and _sell_result.get("status") in ("rejected", "canceled", None)) or (isinstance(_sell_result, dict) and not _sell_result.get("id")):
+                            # Hard verify: check if Alpaca actually has the position gone, not just response shape
+                            _sell_failed = not _sell_result or (isinstance(_sell_result, dict) and _sell_result.get("status") in ("rejected", "canceled")) or (isinstance(_sell_result, dict) and not _sell_result.get("id"))
+                            if not _sell_failed:
+                                # Verify with broker that position is actually gone (3 sec wait for fill)
+                                import time as _t
+                                _t.sleep(3)
+                                try:
+                                    _alp_pos = ibkr.get_positions() or []
+                                    _still_open = any(str(_ap.get("symbol","")).upper() == symbol.upper() for _ap in _alp_pos)
+                                    if _still_open:
+                                        log.info(f"⏰ TIME EXIT {symbol}: order placed but position still at broker — checking again next scan")
+                                        _trade_cooldown[symbol] = datetime.now()
+                                        continue
+                                except Exception as _ve:
+                                    log.warning(f"TIME EXIT {symbol}: broker verify error ({_ve}) — proceeding cautiously")
+                            if _sell_failed:
                                 log.warning(f"⚠️ TIME EXIT {symbol}: sell order failed or rejected — NOT logging phantom close")
-                                # Add cooldown so it doesn't keep retrying every minute
                                 _trade_cooldown[symbol] = datetime.now()
                                 continue
                             from trade_history import save_trade

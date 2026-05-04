@@ -738,6 +738,19 @@ def monitor_option_positions(options_client):
 def run_options_scan(options_client, options_analyzer, stock_signals, pt):
     if not stock_signals:
         return []
+    # Daily loss limit also blocks options new entries (added 5/4)
+    try:
+        import requests as _r, os as _o
+        _h = {"APCA-API-KEY-ID": _o.getenv("ALPACA_API_KEY"), "APCA-API-SECRET-KEY": _o.getenv("ALPACA_SECRET_KEY")}
+        _resp = _r.get("https://api.alpaca.markets/v2/account/portfolio/history?period=1D&timeframe=1H", headers=_h, timeout=10)
+        _eq = [e for e in _resp.json().get("equity", []) if e]
+        if len(_eq) >= 2:
+            _pct = ((_eq[-1] - _eq[0]) / _eq[0]) * 100
+            if _pct <= -config.MAX_DAILY_LOSS_PCT:
+                log.info(f"── Options scan — SKIPPING NEW BUYS (daily loss {_pct:.2f}% <= -{config.MAX_DAILY_LOSS_PCT}%)")
+                return []
+    except Exception as _de:
+        log.debug(f"Options daily loss check error: {_de}")
     log.info(f"── Options scan — {len(stock_signals)} stock signals")
     positions = []
     # Only trade options on BUY signals with 72%+ confidence

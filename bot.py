@@ -721,9 +721,9 @@ def run_options_scan(options_client, options_analyzer, stock_signals, pt):
                 _tt = _TT()
                 _bp = _tt.get_buying_power()
                 _total = _tt.get_account_balance()
-                # Cap at 30% of total account, leave $50 BP buffer, hard ceiling $600
-                per_contract_max = int(_total * 0.30)
-                budget = min(per_contract_max, max(0, int(_bp) - 50), 600) if _bp > 50 else 0
+                # Cap at config.OPTIONS_BUDGET_PCT_OF_TT of total account, leave $50 BP buffer, hard ceiling config.OPTIONS_BUDGET_HARD_CAP
+                per_contract_max = int(_total * config.OPTIONS_BUDGET_PCT_OF_TT)
+                budget = min(per_contract_max, max(0, int(_bp) - 50), config.OPTIONS_BUDGET_HARD_CAP) if _bp > 50 else 0
             except:
                 budget = 250 if config.IS_LIVE else 100
                 _bp = budget
@@ -733,7 +733,7 @@ def run_options_scan(options_client, options_analyzer, stock_signals, pt):
             expiry_days, expiry_reason = get_options_expiry_days(symbol)
             if has_earnings_soon(symbol):
                 log.info(f"Options {symbol}: earnings play — using weekly expiry ({expiry_reason})")
-                budget = min(budget, 1000)  # earnings plays budget
+                budget = min(budget, config.EARNINGS_PLAY_BUDGET_CAP)  # earnings plays budget
             contract = options_client.find_best_option(symbol, direction, budget=budget)
             if not contract:
                 log.info(f"Options {symbol}: No suitable contract found")
@@ -1068,9 +1068,9 @@ def run_earnings_options_scan(options_client, ibkr):
             try:
                 tt_total = options_client.tt.get_account_balance() if options_client.tt else 0
                 tt_bp_avail = options_client.tt.get_buying_power() if options_client.tt else 0
-                # Cap at 30% of total, must have BP, hard ceiling $600
-                per_contract_max = int(tt_total * 0.30)
-                ep_budget = min(per_contract_max, max(0, int(tt_bp_avail) - 50), 600)
+                # Cap at config.OPTIONS_BUDGET_PCT_OF_TT of total, must have BP, hard ceiling config.EARNINGS_PLAY_BUDGET_CAP
+                per_contract_max = int(tt_total * config.OPTIONS_BUDGET_PCT_OF_TT)
+                ep_budget = min(per_contract_max, max(0, int(tt_bp_avail) - 50), config.EARNINGS_PLAY_BUDGET_CAP)
             except:
                 ep_budget = 200
             log.info(f"Earnings play {symbol}: budget=${ep_budget} (30% of total account)")

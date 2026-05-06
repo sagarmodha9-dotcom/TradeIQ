@@ -250,5 +250,30 @@
     "closed_at": "2026-04-27T09:30:24.067755",
     "date": "2026-04-27",
     "saved_at": "2026-04-27T13:30:24.068358+00:00"
+  },
+  {
+    "product_id": "SNAP  260522C00006500",
+    "underlying": "SNAP",
+    "strategy": "buy_call",
+    "side": "BUY",
+    "entry_price": 0.47,
+    "quantity": 1,
+    "usd_value": 47.0,
+    "stop_loss": 0,
+    "take_profit": 0,
+    "confidence": 0.72,
+    "reasoning": "SNAP shows bullish technical setup with price above EMA9/EMA20, healthy RSI at 62.93, and positive MACD crossover. Buy call captures upside to $6.78 target (9% TP) with defined risk. Weekly expiry balances time decay against signal strength while allowing momentum to develop. Low volume is noted but technical confluence supports entry.",
+    "opened_at": "2026-05-04T10:26:05.152918",
+    "market": "options",
+    "pnl_usd": -14.999999999999996,
+    "current_price": 0.32,
+    "last_close_attempt": "2026-05-06T09:36:49.384221",
+    "close_failures": 0,
+    "status": "closed_sl",
+    "exit_price": 0.32,
+    "pnl_pct": -31.914893617021274,
+    "closed_at": "2026-05-06T09:36:52.204170",
+    "date": "2026-05-06",
+    "saved_at": "2026-05-06T13:36:52.204627+00:00"
   }
 ]

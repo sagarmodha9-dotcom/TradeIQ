@@ -275,5 +275,30 @@
     "closed_at": "2026-05-06T09:36:52.204170",
     "date": "2026-05-06",
     "saved_at": "2026-05-06T13:36:52.204627+00:00"
+  },
+  {
+    "product_id": "DIS   260522C00111000",
+    "underlying": "DIS",
+    "strategy": "buy_call",
+    "side": "BUY",
+    "entry_price": 1.245,
+    "quantity": 1,
+    "usd_value": 124.50000000000001,
+    "stop_loss": 0,
+    "take_profit": 0,
+    "confidence": 0.72,
+    "reasoning": "DIS signal meets confidence threshold of 0.72 with multiple bullish confirmations: RSI at 62.36 (healthy, not overbought), positive MACD histogram, price above EMA9/EMA20, and 3.14% above VWAP. Risk/reward ratio of 2:1+ supports options trade. Weekly expiry appropriate for moderate confidence level with defined setup target of $114.75. Low volume concern addressed by avoiding 0DTE; weekly provides sufficient time for momentum continuation while maintaining capital efficiency within $250 budget.",
+    "opened_at": "2026-05-07T15:12:21.208928",
+    "market": "options",
+    "pnl_usd": -39.500000000000014,
+    "current_price": 0.85,
+    "last_close_attempt": "2026-05-08T15:40:03.792919",
+    "close_failures": 0,
+    "status": "closed_sl",
+    "exit_price": 0.85,
+    "pnl_pct": -31.726907630522096,
+    "closed_at": "2026-05-08T15:40:06.645978",
+    "date": "2026-05-08",
+    "saved_at": "2026-05-08T19:40:06.646507+00:00"
   }
 ]

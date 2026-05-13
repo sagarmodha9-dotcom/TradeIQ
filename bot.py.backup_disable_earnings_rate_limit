@@ -7,9 +7,19 @@ _earnings_cache = {}
 _earnings_cache_time = {}
 
 def cached_days_to_earnings(symbol):
-    # Earnings API disabled temporarily because provider is rate-limiting.
-    return None
+    from time import time
+    from earnings_calendar import days_to_earnings
 
+    now = time()
+
+    if symbol in _earnings_cache:
+        if now - _earnings_cache_time.get(symbol, 0) < 600:
+            return _earnings_cache[symbol]
+
+    val = days_to_earnings(symbol)
+    _earnings_cache[symbol] = val
+    _earnings_cache_time[symbol] = now
+    return val
 
 def _safe_json(obj):
     """Recursively convert non-JSON-serializable types."""
@@ -942,7 +952,7 @@ def run_scan(cb, ibkr, analyzer, stock_analyzer, tm, pt, options_client=None, op
     tm.monitor_positions()
     monitor_stock_positions(ibkr, pt)
     monitor_option_positions(options_client)
-    # # run_earnings_options_scan(options_client, ibkr)  # disabled due to earnings API rate limit
+    run_earnings_options_scan(options_client, ibkr)
     stock_signals, stock_pos   = run_stock_scan(ibkr, stock_analyzer, pt)
     options_pos = run_options_scan(options_client, options_analyzer, stock_signals, pt) if options_client else []
     # Crypto disabled - focusing on stocks + options only

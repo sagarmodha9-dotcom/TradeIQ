@@ -2,14 +2,6 @@ import sys
 import os
 import time
 import json
-# ===== Earnings cache (prevents rate limit) =====
-_earnings_cache = {}
-_earnings_cache_time = {}
-
-def cached_days_to_earnings(symbol):
-    # Earnings API disabled temporarily because provider is rate-limiting.
-    return None
-
 
 def _safe_json(obj):
     """Recursively convert non-JSON-serializable types."""
@@ -263,7 +255,8 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
                     "reasoning":   signal.get("reasoning", ""), "market": "stocks",
                 })
                 # Pre-earnings entry block: don't open new positions <= 1 day before earnings
-                _entry_dte = cached_days_to_earnings(symbol)
+                from earnings_calendar import days_to_earnings as _dte_check
+                _entry_dte = _dte_check(symbol)
                 if _entry_dte is not None and _entry_dte <= 1 and signal["action"] == "BUY":
                     log.warning(f"[EARNINGS BLOCK] {symbol}: earnings in {_entry_dte} day(s) — skipping new entry")
                     continue
@@ -403,7 +396,8 @@ def monitor_stock_positions(ibkr, pt):
                         log.info(f"🔒 BREAKEVEN SL {symbol} → ${breakeven_sl:.2f} (price=${current:.2f} +{pnl_pct:.1f}%)")
                 # Pre-earnings risk management — tighten SL or exit before earnings
                 try:
-                    _dte = cached_days_to_earnings(symbol)
+                    from earnings_calendar import days_to_earnings
+                    _dte = days_to_earnings(symbol)
                     
                     # FORCE EXIT on earnings day (DTE == 0) — never hold through earnings
                     if _dte is not None and _dte == 0:
@@ -663,44 +657,10 @@ def monitor_option_positions(options_client):
                                     except:
                                         pass
                             
-                            # HARD GUARD: verify Tastytrade position BEFORE selling
+                            # Attempt the sell
                             sell_result = None
                             try:
-                                _broker_positions = options_client.tt.get_positions() if options_client and options_client.tt else []
-
-                                _broker_pos = next(
-                                    (
-                                        bp for bp in (_broker_positions or [])
-                                        if str(bp.get("symbol", "")).strip() == str(p["product_id"]).strip()
-                                    ),
-                                    None
-                                )
-
-                                if not _broker_pos:
-                                    log.error(f"🧹 PHANTOM OPTION REMOVED: {p['product_id']} not found at Tastytrade — sell blocked")
-                                    state["positions"] = [
-                                        x for x in state["positions"]
-                                        if x.get("product_id") != p["product_id"]
-                                    ]
-                                    with open("bot_state.json", "w") as _f:
-                                        import json as _j
-                                        _j.dump(_safe_json(state), _f, indent=2)
-                                    return
-
-                                actual_qty = int(float(_broker_pos.get("quantity", 0) or 0))
-                                bot_qty = int(float(p.get("quantity", 1) or 1))
-                                qty_to_sell = min(bot_qty, actual_qty)
-
-                                if qty_to_sell <= 0:
-                                    _record_failure("blocked: broker quantity is zero")
-                                    return
-
-                                sell_result = options_client.place_option_order(
-                                    p["product_id"],
-                                    qty=qty_to_sell,
-                                    side="sell"
-                                )
-
+                                sell_result = options_client.place_option_order(p["product_id"], qty=1, side="sell")
                             except Exception as ce:
                                 log.error(f"Options close order failed: {ce}")
                                 _record_failure(f"exception: {ce}")
@@ -942,7 +902,7 @@ def run_scan(cb, ibkr, analyzer, stock_analyzer, tm, pt, options_client=None, op
     tm.monitor_positions()
     monitor_stock_positions(ibkr, pt)
     monitor_option_positions(options_client)
-    # # run_earnings_options_scan(options_client, ibkr)  # disabled due to earnings API rate limit
+    run_earnings_options_scan(options_client, ibkr)
     stock_signals, stock_pos   = run_stock_scan(ibkr, stock_analyzer, pt)
     options_pos = run_options_scan(options_client, options_analyzer, stock_signals, pt) if options_client else []
     # Crypto disabled - focusing on stocks + options only
@@ -1172,7 +1132,7 @@ def run_earnings_options_scan(options_client, ibkr):
 
     for symbol in config.STOCK_SYMBOLS:
         try:
-            dte = cached_days_to_earnings(symbol)
+            dte = days_to_earnings(symbol)
             if dte is None or not (5 <= dte <= 10):
                 continue
 

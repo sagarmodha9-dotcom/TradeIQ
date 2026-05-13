@@ -300,5 +300,30 @@
     "closed_at": "2026-05-08T15:40:06.645978",
     "date": "2026-05-08",
     "saved_at": "2026-05-08T19:40:06.646507+00:00"
+  },
+  {
+    "product_id": "NFLX  260529C00091000",
+    "underlying": "NFLX",
+    "strategy": "buy_call",
+    "side": "BUY",
+    "entry_price": 1.4,
+    "quantity": 1,
+    "usd_value": 140.0,
+    "stop_loss": 0,
+    "take_profit": 0,
+    "confidence": 0.72,
+    "reasoning": "NFLX shows bullish momentum with positive MACD crossover, healthy RSI at 59.98, and strong volume confirmation (1.66x ratio). Price above VWAP with accumulation pattern. $3.31 upside target (3.7%) within ATR-supported range. Weekly expiry balances time decay against signal conviction. With $250 budget, 1-2 OTM call contracts achievable at reasonable premium.",
+    "opened_at": "2026-05-12T10:54:43.922467",
+    "market": "options",
+    "pnl_usd": -61.999999999999986,
+    "current_price": 0.78,
+    "last_close_attempt": "2026-05-13T09:30:23.998336",
+    "close_failures": 0,
+    "status": "closed_sl",
+    "exit_price": 0.78,
+    "pnl_pct": -44.28571428571428,
+    "closed_at": "2026-05-13T09:30:26.780895",
+    "date": "2026-05-13",
+    "saved_at": "2026-05-13T13:30:26.782292+00:00"
   }
 ]

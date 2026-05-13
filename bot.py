@@ -111,14 +111,131 @@ def dynamic_take_profit(pnl_pct):
         return "trail"
     return "hold"
 
-def dynamic_position_size(confidence, total_balance):
-    # bigger size for stronger signals
+
+
+def get_market_regime_from_signal(signal):
+    """
+    Market regime detection:
+    TREND   = strong alignment + volume + momentum
+    CHOP    = weak/sideways/low-volume market
+    NEUTRAL = anything in between
+    """
+    try:
+        indicators = signal.get("indicators", {}) or {}
+
+        price_vs_ema20 = float(indicators.get("price_vs_ema20", 0) or 0)
+        price_vs_vwap = float(indicators.get("price_vs_vwap", 0) or 0)
+        volume_ratio = float(indicators.get("volume_ratio", 0) or 0)
+        rsi = float(indicators.get("rsi_14", 50) or 50)
+        ema_alignment = str(indicators.get("ema_alignment", "")).lower()
+
+        macd = indicators.get("macd", {}) or {}
+        macd_hist = float(macd.get("histogram", 0) or 0)
+
+        if (
+            ema_alignment == "bullish"
+            and price_vs_ema20 >= 1.0
+            and price_vs_vwap >= 0.75
+            and volume_ratio >= 1.0
+            and macd_hist > 0
+            and 45 <= rsi <= 68
+        ):
+            return "TREND"
+
+        if (
+            abs(price_vs_ema20) < 0.40
+            or volume_ratio < 0.55
+            or ema_alignment in ("bearish", "mixed")
+            or macd_hist <= 0
+        ):
+            return "CHOP"
+
+        return "NEUTRAL"
+
+    except Exception:
+        return "NEUTRAL"
+
+
+def get_market_regime_multiplier(signal):
+    regime = get_market_regime_from_signal(signal)
+    if regime == "TREND":
+        return 1.15
+    if regime == "CHOP":
+        return 0.70
+    return 1.0
+
+
+def get_stock_streak_multiplier():
+    """
+    Conservative stock-only streak sizing.
+    Options are NOT scaled by this.
+    """
+    try:
+        import json, os
+
+        if not os.path.exists("trade_history.json"):
+            return 1.0
+
+        with open("trade_history.json") as f:
+            trades = json.load(f)
+
+        stock_trades = [
+            t for t in trades
+            if t.get("market") == "stocks" and "pnl_usd" in t
+        ][-10:]
+
+        if not stock_trades:
+            return 1.0
+
+        streak = 0
+        last_positive = None
+
+        for t in reversed(stock_trades):
+            pnl = float(t.get("pnl_usd", 0) or 0)
+            positive = pnl > 0
+
+            if last_positive is None:
+                last_positive = positive
+
+            if positive == last_positive:
+                streak += 1
+            else:
+                break
+
+        if last_positive is True:
+            if streak >= 5:
+                return 1.25
+            if streak >= 3:
+                return 1.15
+
+        if last_positive is False:
+            if streak >= 2:
+                return 0.75
+
+        return 1.0
+
+    except Exception as e:
+        log.warning(f"Streak sizing check failed: {e}")
+        return 1.0
+
+
+def dynamic_position_size(confidence, total_balance, signal=None):
+    # Stock-only position sizing with conservative streak + regime scaling
     base = total_balance * 0.10
+    streak_multiplier = get_stock_streak_multiplier()
+    regime_multiplier = get_market_regime_multiplier(signal) if signal else 1.0
+
     if confidence >= 0.85:
-        return base * 1.5
-    if confidence >= 0.80:
-        return base * 1.2
-    return base
+        size = base * 1.30
+    elif confidence >= 0.80:
+        size = base * 1.15
+    else:
+        size = base
+
+    final_size = size * streak_multiplier * regime_multiplier
+
+    # Hard cap: never let one stock exceed 15% of account
+    return min(final_size, total_balance * 0.15)
 
 def valid_trade_price(symbol, price, min_price=1.0):
     try:
@@ -456,6 +573,8 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
                 needed_conf = required_stock_confidence(open_stock_count)
 
                 if signal["action"] == "BUY" and not _cooldown_active:
+                    _regime = get_market_regime_from_signal(signal)
+                    log.info(f"REGIME {symbol}: {_regime}")
 
                     open_stock_count = len(existing_positions)
                     needed_conf = required_stock_confidence(open_stock_count)
@@ -1085,11 +1204,7 @@ def elite_option_score(symbol, signal):
 def pro_option_setup_ok(symbol, signal, tastytrade_balance=0):
     """
     Pro options filter:
-    - Protects small Tastytrade account
-    - Requires strong confidence
-    - Requires volume
-    - Requires momentum
-    - Avoids overbought chase entries
+    only allow options on high-confidence, liquid, trending, momentum-backed setups.
     """
     try:
         conf = float(signal.get("confidence", 0) or 0)
@@ -1100,6 +1215,10 @@ def pro_option_setup_ok(symbol, signal, tastytrade_balance=0):
         volume_ratio = float(indicators.get("volume_ratio", 0) or 0)
         price_vs_ema20 = float(indicators.get("price_vs_ema20", 0) or 0)
         price_vs_vwap = float(indicators.get("price_vs_vwap", 0) or 0)
+        ema_alignment = str(indicators.get("ema_alignment", "")).lower()
+
+        macd = indicators.get("macd", {}) or {}
+        macd_hist = float(macd.get("histogram", 0) or 0)
 
         if tastytrade_balance and tastytrade_balance < 500:
             log.warning(f"Options SKIP {symbol}: Tastytrade balance under $500 protection floor")
@@ -1114,11 +1233,19 @@ def pro_option_setup_ok(symbol, signal, tastytrade_balance=0):
             return False
 
         if volume_ratio < 0.70:
-            log.info(f"Options SKIP {symbol}: low volume {volume_ratio:.2f}x")
+            log.info(f"Options SKIP {symbol}: low stock volume {volume_ratio:.2f}x")
             return False
 
         if not (45 <= rsi <= 68):
             log.info(f"Options SKIP {symbol}: RSI {rsi:.1f} outside 45-68")
+            return False
+
+        if ema_alignment != "bullish":
+            log.info(f"Options SKIP {symbol}: EMA alignment not bullish ({ema_alignment})")
+            return False
+
+        if macd_hist <= 0:
+            log.info(f"Options SKIP {symbol}: MACD histogram not positive ({macd_hist:.4f})")
             return False
 
         if price_vs_ema20 < 0.75:
@@ -1134,6 +1261,25 @@ def pro_option_setup_ok(symbol, signal, tastytrade_balance=0):
     except Exception as e:
         log.warning(f"Options SKIP {symbol}: pro filter error {e}")
         return False
+
+
+
+
+def daily_risk_shutdown_active():
+    try:
+        import trade_history as _th
+        summary = _th.get_daily_summary()
+        pnl = float(summary.get("total_pnl", 0) or 0)
+
+        if pnl <= -100:
+            log.critical(f"🚫 DAILY RISK SHUTDOWN: realized PnL ${pnl:.2f} <= -$100")
+            return True
+
+        return False
+    except Exception as e:
+        log.warning(f"Daily risk shutdown check failed: {e}")
+        return False
+
 
 def run_options_scan(options_client, options_analyzer, stock_signals, pt):
     if not stock_signals:
@@ -1152,6 +1298,10 @@ def run_options_scan(options_client, options_analyzer, stock_signals, pt):
     except Exception as _de:
         log.debug(f"Options daily loss check error: {_de}")
     log.info(f"── Options scan — {len(stock_signals)} stock signals")
+
+    if daily_risk_shutdown_active():
+        log.warning("DAILY RISK SHUTDOWN active — skipping options")
+        return []
     positions = []
     try:
         with open("bot_state.json") as _sf:
@@ -1180,6 +1330,11 @@ def run_options_scan(options_client, options_analyzer, stock_signals, pt):
 
         try:
             symbol = signal["product_id"]
+
+            option_regime = get_market_regime_from_signal(signal)
+            if option_regime == "CHOP":
+                log.info(f"Options SKIP {symbol}: market regime CHOP")
+                continue
 
             # Momentum filter
             try:
@@ -1224,7 +1379,7 @@ def run_options_scan(options_client, options_analyzer, stock_signals, pt):
                 _bp = _tt.get_buying_power()
                 _total = _tt.get_account_balance()
                 # Cap at config.OPTIONS_BUDGET_PCT_OF_TT of total account, leave $50 BP buffer, hard ceiling config.OPTIONS_BUDGET_HARD_CAP
-                per_contract_max = int(_total * min(config.OPTIONS_BUDGET_PCT_OF_TT, 0.15))
+                per_contract_max = int(_total * min(config.OPTIONS_BUDGET_PCT_OF_TT, 0.10))
                 budget = min(per_contract_max, max(0, int(_bp) - 50), config.OPTIONS_BUDGET_HARD_CAP) if _bp > 50 else 0
             except:
                 budget = 250 if config.IS_LIVE else 100

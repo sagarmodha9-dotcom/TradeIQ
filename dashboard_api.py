@@ -37,91 +37,105 @@ _live_cache = {"positions": [], "ibkr_pnl": 0.0, "tt_balance": 0.0, "updated": 0
 
 def _refresh_live_background():
     import threading, time
+
     def _fetch():
         while True:
             try:
-                import config, json
+                import config
                 if config.IS_LIVE:
-                    # Get live Alpaca positions
                     try:
                         from alpaca_client import AlpacaClient
                         ac = AlpacaClient()
                         positions = ac.get_positions()
                         live_positions = {}
-                        total_market_value = 0
-                        for p in positions:
-                            sym = p.get("symbol", "")
-                            price = float(p.get("current_price", 0) or 0)
-                            pnl = round(float(p.get("unrealized_pl", 0) or 0), 2)
-                            mval = round(float(p.get("market_value", 0) or 0), 2)
-                            live_positions[sym] = {"pnl": pnl, "current_price": round(price, 2), "market_value": mval}
+                        total_market_value = 0.0
+
+                        for pos in positions:
+                            sym = pos.get("symbol", "")
+                            price = float(pos.get("current_price", 0) or 0)
+                            pnl = round(float(pos.get("unrealized_pl", 0) or 0), 2)
+                            mval = round(float(pos.get("market_value", 0) or 0), 2)
+                            live_positions[sym] = {
+                                "pnl": pnl,
+                                "current_price": round(price, 2),
+                                "market_value": mval,
+                            }
                             total_market_value += mval
+
                         if live_positions:
                             _live_cache["ibkr_positions"] = live_positions
+
                         cash = ac.get_cash_balance()
                         _balance_cache["ibkr"] = round(total_market_value + cash, 2)
+
                     except Exception as e:
                         log.error(f"Live Alpaca fetch error: {e}")
 
-                    # Get live Tastytrade balance + option prices
                     try:
                         from tastytrade_client import TastytradeClient
                         tt = TastytradeClient()
+
                         if tt.session_token:
-                            # Live balance
                             live_bal = tt.get_account_balance()
                             if live_bal > 0:
                                 _balance_cache["tt"] = live_bal
                                 _live_cache["tt_balance"] = live_bal
-                            # Live option prices
+
                             positions = tt.get_positions()
                             live_options = {}
-                            for p in positions:
-                                sym = p.get("symbol", "")
-                                avg_price = float(p.get("average-open-price", 0) or 0)
-                                qty = float(p.get("quantity", 1) or 1)
+
+                            for pos in positions:
+                                sym = str(pos.get("symbol", "")).strip()
+                                avg_price = float(pos.get("average-open-price", 0) or 0)
+                                qty = float(pos.get("quantity", 1) or 1)
                                 cost = avg_price * qty * 100
+
                                 try:
                                     live_price = tt.get_option_market_price(sym)
                                     if live_price and live_price > 0:
                                         current_val = live_price * qty * 100
                                         pnl = round(current_val - cost, 2)
-                                        live_options[sym.strip()] = {
+                                        live_options[sym] = {
                                             "pnl": pnl,
                                             "current_price": round(live_price, 4),
                                             "market_value": round(current_val, 2),
                                         }
-                                except: pass
+                                except Exception:
+                                    pass
+
                             if live_options:
                                 _live_cache["tt_positions"] = live_options
-                            # Calculate exact options P&L: Net Liq - Cost - Cash
+
                             try:
                                 total_cost = sum(
-                                    float(p.get("average-open-price", 0)) *
-                                    float(p.get("quantity", 1)) * 100
-                                    for p in positions
+                                    float(pos.get("average-open-price", 0) or 0) *
+                                    float(pos.get("quantity", 1) or 1) * 100
+                                    for pos in positions
                                 )
-                                # Use long-derivative-value for exact options market value
                                 bal_data = tt._request("GET", f"/accounts/{tt.account_number}/balances")
                                 bal = bal_data.get("data", {})
                                 long_deriv = float(bal.get("long-derivative-value", 0) or 0)
+                                tt_cash = float(bal.get("cash-balance", 0) or 0)
+
                                 if long_deriv > 0:
                                     _live_cache["tt_options_pnl"] = round(long_deriv - total_cost, 2)
                                 else:
-                                    tt_cash = float(bal.get("cash-balance", 97.88) or 97.88)
                                     _live_cache["tt_options_pnl"] = round(live_bal - total_cost - tt_cash, 2)
-                                _live_cache["tt_cash"] = float(bal.get("cash-balance", 97.88) or 97.88)
-                            except:
-                                try:
-                                    _live_cache["tt_options_pnl"] = round(live_bal - total_cost - _live_cache.get("tt_cash", 97.88), 2)
-                                except: pass
-                    except: pass
+
+                                _live_cache["tt_cash"] = tt_cash
+                            except Exception:
+                                pass
+
+                    except Exception as e:
+                        log.error(f"Live Tastytrade fetch error: {e}")
 
                     _live_cache["updated"] = time.time()
                     _balance_cache["updated"] = time.time()
+
             except Exception as e:
-                pass
-            time.sleep(15)  # refresh every 15 seconds
+                log.error(f"Live refresh crash: {e}")
+
+            time.sleep(30)
 
     t = threading.Thread(target=_fetch, daemon=True)
     t.start()
@@ -432,12 +446,6 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Headers", "Content-Type")
             self.end_headers()
         except Exception: pass
-    def do_OPTIONS(self):
-        self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "*")
-        self.end_headers()
 
     def do_GET(self):
         parsed = urlparse(self.path)
@@ -557,21 +565,7 @@ class Handler(BaseHTTPRequestHandler):
             weak  = win_rate_tracker.get_weak_symbols()
             self._json({"stats": stats, "weak_symbols": weak})
         elif path == "/earnings":
-            from earnings_calendar import get_earnings_summary, days_to_earnings, get_earnings_date
-            summary = get_earnings_summary(config.STOCK_SYMBOLS)
-            # Add upcoming earnings sorted by date
-            upcoming = []
-            for sym, data in summary.items():
-                if data.get("days_to_earnings") is not None and 0 <= data["days_to_earnings"] <= 14:
-                    upcoming.append({
-                        "symbol": sym,
-                        "days": data["days_to_earnings"],
-                        "date": data["earnings_date"],
-                        "soon": data["has_earnings_soon"],
-                    })
-            upcoming.sort(key=lambda x: x["days"])
-            self._json({"earnings": summary, "upcoming": upcoming})
-
+            self._json({"earnings": {}, "upcoming": [], "disabled": True, "reason": "earnings API rate limited"})
         elif path == "/premarket":
             import os, json as _j
             if os.path.exists("premarket_watchlist.json"):
@@ -668,9 +662,13 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path   = parsed.path
         if path == "/kill":
+            if self.headers.get("X-API-KEY") != "tradeiq_secret":
+                return self._json({"error": "unauthorized"}, 403)
             risk_manager.activate_kill_switch(reason="dashboard")
             self._json({"status": "killed"})
         elif path == "/resume":
+            if self.headers.get("X-API-KEY") != "tradeiq_secret":
+                return self._json({"error": "unauthorized"}, 403)
             risk_manager.deactivate_kill_switch()
             self._json({"status": "active"})
         else:
@@ -680,7 +678,7 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     server = HTTPServer(("0.0.0.0", 8081), Handler)
-    log.info("Dashboard API running on http://localhost:5001")
+    log.info("Dashboard API running on http://localhost:8081")
     log.info("Chart endpoints: /chart/crypto?symbol=BTC-USD  /chart/stock?symbol=AAPL")
     try:    server.serve_forever()
     except KeyboardInterrupt: log.info("Stopped.")

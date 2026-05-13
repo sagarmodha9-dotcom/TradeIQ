@@ -157,8 +157,33 @@ class OptionsClient:
                         log.info(f"Options {symbol}: reject theta {real_theta:.3f} too negative")
                         return None
 
-                    if real_iv > 0.80:
-                        log.info(f"Options {symbol}: reject IV {real_iv:.1%} too expensive (>80%)")
+                    # IV filter: avoid dead contracts and overpriced contracts
+                    if real_iv < 0.25:
+                        log.info(f"Options {symbol}: reject IV {real_iv:.1%} too low — weak movement")
+                        return None
+
+                    if real_iv > 0.70:
+                        log.info(f"Options {symbol}: reject IV {real_iv:.1%} too high — overpriced")
+                        return None
+
+                    # Liquidity filter: avoid wide spreads / dead contracts when data is available
+                    bid = float(best.get("bid", best.get("bid-price", 0)) or 0)
+                    ask = float(best.get("ask", best.get("ask-price", 0)) or 0)
+                    volume = int(float(best.get("volume", 0) or 0))
+                    open_interest = int(float(best.get("open_interest", best.get("open-interest", 0)) or 0))
+
+                    if bid > 0 and ask > 0:
+                        spread = (ask - bid) / max(ask, 0.01)
+                        if spread > 0.18:
+                            log.info(f"Options {symbol}: reject wide spread ({spread:.1%})")
+                            return None
+
+                    if volume > 0 and volume < 50:
+                        log.info(f"Options {symbol}: reject low option volume ({volume})")
+                        return None
+
+                    if open_interest > 0 and open_interest < 100:
+                        log.info(f"Options {symbol}: reject low open interest ({open_interest})")
                         return None
 
             price = self.tt.get_option_price(best.get("symbol", ""))
@@ -181,6 +206,63 @@ class OptionsClient:
             return None
 
     def place_option_order(self, contract_symbol, qty=1, side="buy"):
+        # HARD SAFETY: Never send a Tastytrade sell unless broker confirms we own the contract.
+        # Prevents accidental Sell-to-Open / uncovered option rejection on Limited accounts.
+        try:
+            if str(side).lower() in ("sell", "sell_to_close", "stc"):
+                log.warning(f"SELL ATTEMPT DETECTED: {symbol}")
+
+                broker_positions = self.tt.get_positions() if getattr(self, "tt", None) else []
+                
+                owned = False
+                actual_qty = 0
+
+                for bp in broker_positions or []:
+                    if str(symbol) in str(bp.get("symbol", "")):
+                        actual_qty = int(float(bp.get("quantity", 0) or 0))
+                        if actual_qty > 0:
+                            owned = True
+                            break
+
+                if not owned:
+                    log.error(f"BLOCKED OPTION SELL: {symbol} — no ownership confirmed")
+                    return {"success": False, "blocked": True}
+
+                qty = min(int(qty), actual_qty)
+
+                broker_positions = self.tt.get_positions() if getattr(self, "tt", None) else []
+                broker_pos = next(
+                    (
+                        bp for bp in (broker_positions or [])
+                        if str(bp.get("symbol", "")).strip() == str(symbol).strip()
+                    ),
+                    None
+                )
+
+                actual_qty = int(float((broker_pos or {}).get("quantity", 0) or 0))
+
+                if not broker_pos or actual_qty <= 0:
+                    log.error(f"BLOCKED OPTION SELL: no matching Tastytrade position for {symbol}; refusing to send sell order")
+                    return {
+                        "success": False,
+                        "filled": False,
+                        "blocked": True,
+                        "reason": "no broker position; prevented possible sell-to-open",
+                        "symbol": symbol,
+                    }
+
+                qty = min(int(float(qty or 1)), actual_qty)
+
+        except Exception as e:
+            log.error(f"BLOCKED OPTION SELL: broker position verification failed for {symbol}: {e}")
+            return {
+                "success": False,
+                "filled": False,
+                "blocked": True,
+                "reason": f"broker verification failed: {e}",
+                "symbol": symbol,
+            }
+
         """Place option order via Tastytrade."""
         if self.tt:
             return self.tt.place_option_order(contract_symbol, qty, side)

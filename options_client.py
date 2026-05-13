@@ -74,7 +74,7 @@ class OptionsClient:
                         ed = exp.get("expiration-date", "")
                         if ed:
                             days = (datetime.strptime(ed, "%Y-%m-%d").date() - date.today()).days
-                            if 8 <= days <= 45:
+                            if 21 <= days <= 45:
                                 available_expiries.append((ed, days))
             except Exception as e:
                 log.warning(f"Options {symbol}: could not get expiries: {e}")
@@ -104,8 +104,8 @@ class OptionsClient:
                     else:
                         pct_otm = (current_price - strike) / current_price
 
-                    # Only consider 0.5% to 8% OTM
-                    if not (0.005 <= pct_otm <= 0.08):
+                    # Prefer slightly ITM to modest OTM for higher win probability
+                    if not (-0.03 <= pct_otm <= 0.04):
                         continue
 
                     # Try real Greeks first, fall back to approximation
@@ -114,7 +114,7 @@ class OptionsClient:
                     greeks = None
                     # Use approximation for filtering (fast), real Greeks for winner only
                     delta = self._approx_delta(pct_otm, days_out)
-                    if not (0.30 <= delta <= 0.55):
+                    if not (0.45 <= delta <= 0.60):
                         continue
 
                     c["delta"]           = delta
@@ -126,8 +126,8 @@ class OptionsClient:
                 log.info(f"Options {symbol}: no suitable {option_type} contract found")
                 return None
 
-            # Pick candidate with delta closest to 0.40
-            best = sorted(best_candidates, key=lambda c: abs(c.get("delta", 0.35) - 0.40))[0]
+            # Pick candidate with delta closest to 0.52 for better win probability
+            best = sorted(best_candidates, key=lambda c: abs(c.get("delta", 0.52) - 0.52))[0]
 
             # Step 4: Fetch real Greeks + price for winner only
             # Get streamer symbol from chain data
@@ -143,6 +143,23 @@ class OptionsClient:
                     best["vega"]  = greeks.get("vega",  0)
                     best["iv"]    = greeks.get("iv",    0)
                     log.info(f"Options {symbol}: real Greeks — delta={best['delta']:.3f} theta={best['theta']:.3f} iv={best['iv']:.3f}")
+
+                    # Profit-quality filter: avoid low-probability / heavy-theta contracts
+                    real_delta = abs(float(best.get("delta", 0) or 0))
+                    real_theta = float(best.get("theta", 0) or 0)
+                    real_iv = float(best.get("iv", 0) or 0)
+
+                    if not (0.45 <= real_delta <= 0.65):
+                        log.info(f"Options {symbol}: reject delta {real_delta:.3f} outside 0.45-0.65")
+                        return None
+
+                    if real_theta < -0.45:
+                        log.info(f"Options {symbol}: reject theta {real_theta:.3f} too negative")
+                        return None
+
+                    if real_iv > 0.80:
+                        log.info(f"Options {symbol}: reject IV {real_iv:.1%} too expensive (>80%)")
+                        return None
 
             price = self.tt.get_option_price(best.get("symbol", ""))
             if price <= 0:

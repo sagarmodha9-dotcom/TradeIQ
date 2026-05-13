@@ -168,6 +168,19 @@ class AlpacaClient:
         elif qty:
             body["qty"] = str(qty)
         resp = self._request("POST", self.base_url, "/v2/orders", body=body)
+        status = str((resp or {}).get("status", "")).lower()
+        if not resp or status in ("rejected", "canceled", "expired") or not resp.get("id"):
+            log.error(f"Alpaca order failed/rejected: {symbol} {side} resp={resp}")
+            return {
+                "success": False,
+                "paper": False,
+                "order_id": None,
+                "symbol": symbol,
+                "side": side,
+                "error": resp,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+
         return {
             "success":        True,
             "paper":          False,

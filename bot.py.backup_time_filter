@@ -11,6 +11,7 @@ def cached_days_to_earnings(symbol):
     # Return None so bot skips earnings-based blocks/exits instead of spamming requests.
     return None
 
+
 def _safe_json(obj):
     """Recursively convert non-JSON-serializable types."""
     if isinstance(obj, bool): return int(obj)
@@ -66,6 +67,8 @@ def _save_safety_state(state):
         except Exception:
             pass
 
+
+
 def required_stock_confidence(open_stock_count=0):
     """
     Dynamic confidence threshold:
@@ -103,6 +106,8 @@ def has_enough_bar_data(symbol, bars, min_bars=50):
 
     return True
 
+
+
 def dynamic_take_profit(pnl_pct):
     # scale profits instead of fixed 6%
     if pnl_pct >= 10:
@@ -131,22 +136,7 @@ def valid_trade_price(symbol, price, min_price=1.0):
         log.warning(f"[DATA BLOCK] {symbol}: invalid price value — skipping trade")
         return False
 
-def good_options_time():
-    try:
-        now = datetime.now()
-        hour = now.hour
-        minute = now.minute
 
-        # Convert to minutes since midnight
-        t = hour * 60 + minute
-
-        # 10:00–12:00 OR 13:30–15:30
-        if (600 <= t <= 720) or (810 <= t <= 930):
-            return True
-
-        return False
-    except:
-        return True
 
 def option_trade_allowed_today():
     try:
@@ -213,6 +203,7 @@ def clear_safety_failures():
     state = _load_safety_state()
     state["order_failures"] = 0
     _save_safety_state(state)
+
 
 def _handle_exit(sig, frame):
     global _running
@@ -353,6 +344,8 @@ def get_position_size(symbol, base_size, ibkr):
         return size
     except Exception:
         return base_size
+
+
 
 _daily_loss_alerted = False
 _daily_loss_check_date = None
@@ -768,6 +761,7 @@ def get_option_price_yf(contract_symbol):
     except:
         return 0.0
 
+
 def monitor_option_positions(options_client):
     """Update P&L on open options positions using Yahoo Finance."""
     try:
@@ -955,64 +949,19 @@ def monitor_option_positions(options_client):
                             log.info(f"OPTIONS AUTO-CLOSED (verified): {p['product_id']} {pnl_pct:.1f}% ({reason})")
 
                         if pnl_pct >= 20 and not p.get("alerted_tp"):
-                            log.info(f"OPTIONS TP HIT {p['product_id']}: +{pnl_pct:.1f}%")
-
-                            # Partial profit system:
-                            # If holding 2+ contracts, sell 1 at +20%, keep the rest for +35%.
-                            # If holding only 1 contract, close fully at +20%.
-                            if p.get("quantity", 1) >= 2 and not p.get("partial_tp_done"):
+                            log.info(f"OPTIONS TP HIT {p['product_id']}: +{pnl_pct:.1f}% (threshold={tp_threshold}%)")
+                            # Profit ladder: sell half at TP, let rest ride free
+                            if p.get("quantity", 1) >= 2 and not p.get("ladder_triggered"):
                                 try:
-                                    _broker_positions = options_client.tt.get_positions() if options_client and options_client.tt else []
-                                    _broker_pos = next(
-                                        (
-                                            bp for bp in (_broker_positions or [])
-                                            if str(bp.get("symbol", "")).strip() == str(p["product_id"]).strip()
-                                        ),
-                                        None
-                                    )
-
-                                    if not _broker_pos:
-                                        log.error(f"PARTIAL TP BLOCKED: {p['product_id']} not found at Tastytrade")
-                                        _close_option("closed_tp")
-                                    else:
-                                        sell_one = options_client.place_option_order(
-                                            p["product_id"],
-                                            qty=1,
-                                            side="sell"
-                                        )
-
-                                        if sell_one and sell_one.get("success") and sell_one.get("filled") is not False:
-                                            p["quantity"] = int(p.get("quantity", 2)) - 1
-                                            p["partial_tp_done"] = True
-                                            p["alerted_tp"] = True
-                                            p["next_tp_pct"] = 35
-
-                                            with open("bot_state.json", "w") as _f:
-                                                import json as _j
-                                                _j.dump(_safe_json(state), _f, indent=2)
-
-                                            log.info(f"💰 PARTIAL TP: sold 1 {p['product_id']} at +{pnl_pct:.1f}%, keeping {p['quantity']} runner")
-                                            try:
-                                                from notifier import _send
-                                                _send(f"💰 <b>PARTIAL OPTIONS TP</b>\n{p['product_id']}\nSold 1 contract at +{pnl_pct:.1f}%\nRunner target: +35%")
-                                            except Exception:
-                                                pass
-                                        else:
-                                            log.warning(f"PARTIAL TP failed/not filled for {p['product_id']} — using guarded full close")
-                                            _close_option("closed_tp")
-
-                                except Exception as le:
-                                    log.error(f"Partial TP error: {le}")
+                                    log.warning(f"LADDER disabled for safety — using guarded broker-verified close for {p['product_id']}")
                                     _close_option("closed_tp")
-
+                                except Exception as le:
+                                    log.error(f"Ladder sell error: {le}")
+                                    alert_trade_closed(p["product_id"], "BUY", p["entry_price"], current, pnl, pnl_pct, "options_tp", "options")
+                                    _close_option("closed_tp")
                             else:
                                 alert_trade_closed(p["product_id"], "BUY", p["entry_price"], current, pnl, pnl_pct, "options_tp", "options")
                                 _close_option("closed_tp")
-
-                        elif p.get("partial_tp_done") and pnl_pct >= 35:
-                            log.info(f"OPTIONS RUNNER TP HIT {p['product_id']}: +{pnl_pct:.1f}%")
-                            alert_trade_closed(p["product_id"], "BUY", p["entry_price"], current, pnl, pnl_pct, "options_runner_tp", "options")
-                            _close_option("closed_runner_tp")
                         elif pnl_pct <= -50 and not p.get("alerted_sl"):
                             alert_trade_closed(p["product_id"], "BUY", p["entry_price"], current, pnl, pnl_pct, "options_sl_alert", "options")
                             p["alerted_sl"] = True
@@ -1030,110 +979,6 @@ def monitor_option_positions(options_client):
                 json.dump(_safe_json(state), f, indent=2)
     except Exception as e:
         log.error(f"monitor_option_positions error: {e}")
-
-def elite_option_score(symbol, signal):
-    try:
-        indicators = signal.get("indicators", {}) or {}
-
-        conf = float(signal.get("confidence", 0) or 0)
-        rsi = float(indicators.get("rsi_14", 50) or 50)
-        volume_ratio = float(indicators.get("volume_ratio", 0) or 0)
-        price_vs_ema20 = float(indicators.get("price_vs_ema20", 0) or 0)
-        price_vs_vwap = float(indicators.get("price_vs_vwap", 0) or 0)
-        macd = indicators.get("macd", {}) or {}
-        macd_hist = float(macd.get("histogram", 0) or 0)
-        ema_alignment = str(indicators.get("ema_alignment", "")).lower()
-
-        score = 0
-        reasons = []
-
-        if conf >= 0.85:
-            score += 25
-            reasons.append("confidence")
-        if 50 <= rsi <= 65:
-            score += 15
-            reasons.append("rsi_sweet_spot")
-        elif 45 <= rsi < 50 or 65 < rsi <= 68:
-            score += 8
-            reasons.append("rsi_acceptable")
-        if volume_ratio >= 1.0:
-            score += 20
-            reasons.append("volume_confirmed")
-        elif volume_ratio >= 0.7:
-            score += 10
-            reasons.append("volume_ok")
-        if price_vs_ema20 >= 1.0:
-            score += 15
-            reasons.append("above_ema20")
-        if price_vs_vwap >= 0.75:
-            score += 15
-            reasons.append("above_vwap")
-        if macd_hist > 0:
-            score += 10
-            reasons.append("macd_positive")
-        if ema_alignment == "bullish":
-            score += 10
-            reasons.append("ema_bullish")
-
-        log.info(f"Options ELITE SCORE {symbol}: {score}/110 | {', '.join(reasons)}")
-        return score, reasons
-
-    except Exception as e:
-        log.warning(f"Options ELITE SCORE {symbol}: error {e}")
-        return 0, []
-
-def pro_option_setup_ok(symbol, signal, tastytrade_balance=0):
-    """
-    Pro options filter:
-    - Protects small Tastytrade account
-    - Requires strong confidence
-    - Requires volume
-    - Requires momentum
-    - Avoids overbought chase entries
-    """
-    try:
-        conf = float(signal.get("confidence", 0) or 0)
-        entry = float(signal.get("entry_price", 0) or 0)
-        indicators = signal.get("indicators", {}) or {}
-
-        rsi = float(indicators.get("rsi_14", 50) or 50)
-        volume_ratio = float(indicators.get("volume_ratio", 0) or 0)
-        price_vs_ema20 = float(indicators.get("price_vs_ema20", 0) or 0)
-        price_vs_vwap = float(indicators.get("price_vs_vwap", 0) or 0)
-
-        if tastytrade_balance and tastytrade_balance < 500:
-            log.warning(f"Options SKIP {symbol}: Tastytrade balance under $500 protection floor")
-            return False
-
-        if conf < 0.85:
-            log.info(f"Options SKIP {symbol}: confidence {conf:.0%} < 85%")
-            return False
-
-        if entry <= 0:
-            log.info(f"Options SKIP {symbol}: invalid entry price")
-            return False
-
-        if volume_ratio < 0.70:
-            log.info(f"Options SKIP {symbol}: low volume {volume_ratio:.2f}x")
-            return False
-
-        if not (45 <= rsi <= 68):
-            log.info(f"Options SKIP {symbol}: RSI {rsi:.1f} outside 45-68")
-            return False
-
-        if price_vs_ema20 < 0.75:
-            log.info(f"Options SKIP {symbol}: price not strong enough vs EMA20 ({price_vs_ema20:+.2f}%)")
-            return False
-
-        if price_vs_vwap < 0.50:
-            log.info(f"Options SKIP {symbol}: price not strong enough vs VWAP ({price_vs_vwap:+.2f}%)")
-            return False
-
-        return True
-
-    except Exception as e:
-        log.warning(f"Options SKIP {symbol}: pro filter error {e}")
-        return False
 
 def run_options_scan(options_client, options_analyzer, stock_signals, pt):
     if not stock_signals:
@@ -1158,56 +1003,60 @@ def run_options_scan(options_client, options_analyzer, stock_signals, pt):
             _state_for_risk = json.load(_sf)
         _open_stocks = [p for p in _state_for_risk.get("positions", []) if p.get("market") == "stocks"]
         if len(_open_stocks) >= config.MAX_OPEN_POSITIONS:
-            log.info(f"Options scan — stock exposure maxed ({len(_open_stocks)}), allowing LIMITED options trade")
+            log.info(f"Options scan — skipping because stock exposure is already maxed ({len(_open_stocks)} open stocks)")
+            return positions
     except Exception:
         pass
     # Only trade options on BUY signals with 72%+ confidence
     # Options require higher conviction than stocks because losses move faster
     options_min_conf = max(config.MIN_CONFIDENCE, 0.85)
     candidates = sorted(
-        [s for s in stock_signals if s["action"] == "BUY" and s["confidence"] >= options_min_conf],
-        key=lambda x: x["confidence"],
-        reverse=True
-    )[:2]
+    [s for s in stock_signals if s["action"] == "BUY" and s["confidence"] >= options_min_conf],
+    key=lambda x: x["confidence"],
+    reverse=True
+)[:2]
+    account_balance = pt.stock_balance if pt else config.get_account_balance()
+    if not candidates:
+        log.info("No eligible stock signals for options")
+        return []
+    # Get existing options positions to avoid duplicates
+    try:
+        import json
+        with open("bot_state.json") as f:
+            existing_state = json.load(f)
+        existing_opts = [p["underlying"] for p in existing_state.get("positions", []) if p.get("market") == "options"]
+    except Exception:
+        existing_opts = []
+
+    if not options_trading_allowed():
+        log.warning("Options trading disabled by safety kill switch — skipping option entries")
+        return positions
+
     for signal in candidates:
         if not option_trade_allowed_today():
             log.info("Options SKIP: daily limit reached")
             break
-
-        if not good_options_time():
-            log.info("Options SKIP: bad time window")
-            break
-
         try:
             symbol = signal["product_id"]
-
-            # Momentum filter
+            # Momentum filter — only take options if stock is actually moving
             try:
                 entry = float(signal.get("entry_price") or 0)
                 current = float(signal.get("current_price") or entry)
                 if entry > 0:
                     move_pct = (current - entry) / entry
-                    if abs(move_pct) < 0.01:  # require at least 1% move for real momentum
+                    if abs(move_pct) < 0.005:  # <0.5% move = no momentum
                         log.info(f"Options SKIP {symbol}: no momentum ({move_pct:.3%})")
-                        continue
-
-                    vol_ratio = float(signal.get("indicators", {}).get("volume_ratio", 0) or 0)
-                    if vol_ratio < 0.7:
-                        log.info(f"Options SKIP {symbol}: low volume ({vol_ratio:.2f}x)")
                         continue
             except Exception:
                 pass
 
             if not valid_trade_price(symbol, signal.get("entry_price")):
                 continue
-
             if symbol in existing_opts:
                 log.info(f"Options {symbol}: already have position — skipping")
                 continue
-
-            price = signal["entry_price"]
+            price  = signal["entry_price"]
             opt_signal = options_analyzer.analyze(symbol, signal, price)
-
             if not opt_signal or opt_signal["strategy"] == "pass":
                 continue
             ok, reason = risk_manager.check_all(symbol + "_OPT", opt_signal["confidence"], account_balance)
@@ -1224,7 +1073,7 @@ def run_options_scan(options_client, options_analyzer, stock_signals, pt):
                 _bp = _tt.get_buying_power()
                 _total = _tt.get_account_balance()
                 # Cap at config.OPTIONS_BUDGET_PCT_OF_TT of total account, leave $50 BP buffer, hard ceiling config.OPTIONS_BUDGET_HARD_CAP
-                per_contract_max = int(_total * min(config.OPTIONS_BUDGET_PCT_OF_TT, 0.15))
+                per_contract_max = int(_total * config.OPTIONS_BUDGET_PCT_OF_TT)
                 budget = min(per_contract_max, max(0, int(_bp) - 50), config.OPTIONS_BUDGET_HARD_CAP) if _bp > 50 else 0
             except:
                 budget = 250 if config.IS_LIVE else 100
@@ -1286,6 +1135,11 @@ def run_options_scan(options_client, options_analyzer, stock_signals, pt):
         except Exception as e:
             log.error(f"Options scan error {signal.get('product_id')}: {e}")
     return positions
+
+
+
+
+
 
 def run_scan(cb, ibkr, analyzer, stock_analyzer, tm, pt, options_client=None, options_analyzer=None):
     log.info(f"\nScan @ {datetime.now().strftime('%H:%M:%S')}")
@@ -1355,6 +1209,7 @@ def run_scan(cb, ibkr, analyzer, stock_analyzer, tm, pt, options_client=None, op
         print("\n" + tabulate(rows, headers=["Symbol","Market","Action","Conf","Entry"], tablefmt="rounded_outline") + "\n")
         save_state(stock_signals, stock_pos + options_pos, pt)
 
+
 def sync_tastytrade_positions(options_client, pt):
     """Sync open Tastytrade options positions into bot_state.json on startup.
     Removes phantom options (in bot_state but not at broker) AND adds missing ones."""
@@ -1415,6 +1270,7 @@ def sync_tastytrade_positions(options_client, pt):
             log.info(f"Tastytrade sync: {added} positions added")
     except Exception as e:
         log.error(f"sync_tastytrade_positions: {e}")
+
 
 def run_premarket_scan(ibkr, analyzer, stock_analyzer):
     """
@@ -1527,6 +1383,7 @@ def run_premarket_scan(ibkr, analyzer, stock_analyzer):
         log.info("🌅 PRE-MARKET: no high-score symbols found")
 
     return watchlist
+
 
 def run_earnings_options_scan(options_client, ibkr):
     """
@@ -1707,6 +1564,9 @@ def main():
     options_client   = OptionsClient(alpaca_client=ibkr)
     options_analyzer = OptionsAnalyzer()
 
+
+
+
     pt             = PortfolioTracker()
     sync_tastytrade_positions(options_client, pt)
 
@@ -1730,11 +1590,11 @@ def main():
                     state["positions"].append({
                         "product_id": p["symbol"],
                         "side": "BUY",
-                        "entry_price": float(p["avg_entry_price"]),
-                        "quantity": float(p["qty"]),
-                        "usd_value": round(float(p["avg_entry_price"]) * float(p["qty"]), 2),
-                        "stop_loss": round(float(p["avg_entry_price"]) * (1 - config.get_sl_pct(p.get("symbol",""))), 2),
-                        "take_profit": round(float(p["avg_entry_price"]) * (1 + config.get_tp_pct(p.get("symbol",""))), 2),
+                        "entry_price": p["avg_entry_price"],
+                        "quantity": p["qty"],
+                        "usd_value": round(p["avg_entry_price"] * p["qty"], 2),
+                        "stop_loss": round(p["avg_entry_price"] * (1 - config.get_sl_pct(p.get("symbol",""))), 2),
+                        "take_profit": round(p["avg_entry_price"] * (1 + config.get_tp_pct(p.get("symbol",""))), 2),
                         "confidence": 0.72,
                         "reasoning": "Synced from Alpaca on startup",
                         "opened_at": __import__("datetime").datetime.now().isoformat(),

@@ -16,7 +16,7 @@ LIVE_ACCOUNT_BALANCE = float(os.getenv("LIVE_ACCOUNT_BALANCE", 2000))
 
 MAX_POSITION_PCT     = float(os.getenv("MAX_POSITION_PCT", 0.05))
 STOP_LOSS_PCT        = float(os.getenv("STOP_LOSS_PCT", 0.03))
-TAKE_PROFIT_PCT      = float(os.getenv("TAKE_PROFIT_PCT", 0.06))
+TAKE_PROFIT_PCT      = float(os.getenv("TAKE_PROFIT_PCT", 0.04))
 STOCK_SL_PCT         = float(os.getenv("STOCK_SL_PCT", 0.03))
 STOCK_TP_PCT         = float(os.getenv("STOCK_TP_PCT", 0.06))
 DAILY_LOSS_LIMIT_PCT = float(os.getenv("DAILY_LOSS_LIMIT_PCT", 0.05))

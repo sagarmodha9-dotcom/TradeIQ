@@ -90,17 +90,17 @@ def get_daily_loss_limit_usd():
 # Mid vol: META, GOOGL, AMZN, MSFT — standard TP
 # Low vol: SPY, QQQ, JPM, BAC — tighter TP for faster hits
 SYMBOL_TP_PCT = {
-    # High volatility — let run
-    "TSLA": 0.08, "NVDA": 0.07, "COIN": 0.09, "AMD":  0.07,
-    "HOOD": 0.09, "SOFI": 0.08, "PLTR": 0.07, "APP":  0.08,
-    "SNAP": 0.09, "ROKU": 0.09, "SHOP": 0.07, "SQ":   0.07,
-    "BABA": 0.07,
-    # Mid volatility — standard
-    "META": 0.06, "GOOGL": 0.06, "AMZN": 0.06, "MSFT": 0.05,
-    "AAPL": 0.05, "NFLX":  0.06, "UBER": 0.06, "DIS":  0.06,
-    "INTC": 0.06,
-    # Low volatility — tight TP for more hits
-    "SPY":  0.03, "QQQ":  0.03, "JPM":  0.04, "BAC":  0.04,
+    # High volatility — let run (lowered 5/21 from 7-9% to 5-6%)
+    "TSLA": 0.06, "NVDA": 0.05, "COIN": 0.06, "AMD":  0.05,
+    "HOOD": 0.06, "SOFI": 0.06, "PLTR": 0.05, "APP":  0.06,
+    "SNAP": 0.06, "ROKU": 0.06, "SHOP": 0.05, "SQ":   0.05,
+    "BABA": 0.05,
+    # Mid volatility (lowered from 5-6% to 3.5-4%)
+    "META": 0.04, "GOOGL": 0.04, "AMZN": 0.04, "MSFT": 0.035,
+    "AAPL": 0.035,"NFLX":  0.04, "UBER": 0.04, "DIS":  0.04,
+    "INTC": 0.04,
+    # Low volatility (lowered from 3-4% to 2-2.5%)
+    "SPY":  0.02, "QQQ":  0.02, "JPM":  0.025, "BAC":  0.025,
 }
 
 SYMBOL_SL_PCT = {

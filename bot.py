@@ -1314,11 +1314,18 @@ def run_options_scan(options_client, options_analyzer, stock_signals, pt):
     # Only trade options on BUY signals with 72%+ confidence
     # Options require higher conviction than stocks because losses move faster
     options_min_conf = max(config.MIN_CONFIDENCE, 0.85)
+    # Cheap-underlying filter (added 5/21): only consider symbols whose ATM options fit our small TT budget
+    _cheap_universe = set(s.strip().upper() for s in getattr(config, "CHEAP_OPTIONS_UNIVERSE", []))
     candidates = sorted(
-        [s for s in stock_signals if s["action"] == "BUY" and s["confidence"] >= options_min_conf],
+        [s for s in stock_signals 
+         if s["action"] == "BUY" 
+         and s["confidence"] >= options_min_conf
+         and s["product_id"].upper() in _cheap_universe],
         key=lambda x: x["confidence"],
         reverse=True
     )[:2]
+    if not candidates:
+        log.info(f"Options scan — no BUY signals in cheap universe ({len(_cheap_universe)} symbols)")
     for signal in candidates:
         if not option_trade_allowed_today():
             log.info("Options SKIP: daily limit reached")

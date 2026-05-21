@@ -128,3 +128,6 @@ def get_sl_pct(symbol):
 OPTIONS_BUDGET_PCT_OF_TT  = float(os.getenv("OPTIONS_BUDGET_PCT_OF_TT", 0.30))   # 30% of TT total per regular options trade
 OPTIONS_BUDGET_HARD_CAP   = int(os.getenv("OPTIONS_BUDGET_HARD_CAP", 600))       # ceiling for regular options
 EARNINGS_PLAY_BUDGET_CAP  = int(os.getenv("EARNINGS_PLAY_BUDGET_CAP", 300))      # ceiling for earnings plays (was 1000)
+
+# Cheap underlyings for options — symbols where ATM weekly calls fit in <$200 budget (added 5/21)
+CHEAP_OPTIONS_UNIVERSE = os.getenv("CHEAP_OPTIONS_UNIVERSE", "SOFI,INTC,PLTR,SNAP,F,BAC,HOOD,NU,T,UBER,AAL,CCL,RIVN,LCID,PFE,WBD,GRAB").split(",")

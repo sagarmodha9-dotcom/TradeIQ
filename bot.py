@@ -801,7 +801,7 @@ def monitor_stock_positions(ibkr, pt):
                     if _dte is not None and _dte == 0:
                         log.warning(f"⚠️ EARNINGS DAY EXIT {symbol} @ ${current:.2f} — earnings today, force closing")
                         _earnings_sell = ibkr.place_market_order(symbol, "sell", qty=float(pos["quantity"]))
-                        if _earnings_sell and isinstance(_earnings_sell, dict) and _earnings_sell.get("id"):
+                        if _earnings_sell and isinstance(_earnings_sell, dict) and (_earnings_sell.get("order_id") or _earnings_sell.get("id")) and _earnings_sell.get("success") is not False:
                             from trade_history import save_trade
                             save_trade({"product_id": symbol, "side": "BUY", "entry_price": entry,
                                 "exit_price": current, "pnl_usd": round(pnl, 4),
@@ -840,7 +840,7 @@ def monitor_stock_positions(ibkr, pt):
                             log.info(f"⏰ TIME EXIT {symbol} @ ${current:.2f} — open {hours_open:.1f}hrs +{pnl_pct:.1f}% — taking profit")
                             _sell_result = ibkr.place_market_order(symbol, "sell", qty=float(pos["quantity"]))
                             # Hard verify: check if Alpaca actually has the position gone, not just response shape
-                            _sell_failed = not _sell_result or (isinstance(_sell_result, dict) and _sell_result.get("status") in ("rejected", "canceled")) or (isinstance(_sell_result, dict) and not _sell_result.get("id"))
+                            _sell_failed = not _sell_result or (isinstance(_sell_result, dict) and _sell_result.get("success") is False) or (isinstance(_sell_result, dict) and not (_sell_result.get("order_id") or _sell_result.get("id")))
                             if not _sell_failed:
                                 # Verify with broker that position is actually gone (3 sec wait for fill)
                                 import time as _t
@@ -876,7 +876,7 @@ def monitor_stock_positions(ibkr, pt):
                     log.info(f"❌ STOCK SL HIT {symbol} @ ${current:.2f} PnL: ${pnl:.2f}")
                     # Verify sell actually executed before logging close
                     _sl_sell = ibkr.place_market_order(symbol, "sell", qty=float(pos["quantity"]))
-                    if not _sl_sell or (isinstance(_sl_sell, dict) and not _sl_sell.get("id")):
+                    if not _sl_sell or (isinstance(_sl_sell, dict) and _sl_sell.get("success") is False) or (isinstance(_sl_sell, dict) and not (_sl_sell.get("order_id") or _sl_sell.get("id"))):
                         log.warning(f"⚠️ STOCK SL {symbol}: sell rejected/failed — NOT logging phantom close")
                         _trade_cooldown[symbol] = datetime.now()
                         continue
@@ -905,7 +905,7 @@ def monitor_stock_positions(ibkr, pt):
                     log.info(f"✅ STOCK TP HIT {symbol} @ ${current:.2f} PnL: ${pnl:.2f}")
                     # Verify sell actually executed before logging close
                     _tp_sell = ibkr.place_market_order(symbol, "sell", qty=float(pos["quantity"]))
-                    if not _tp_sell or (isinstance(_tp_sell, dict) and not _tp_sell.get("id")):
+                    if not _tp_sell or (isinstance(_tp_sell, dict) and _tp_sell.get("success") is False) or (isinstance(_tp_sell, dict) and not (_tp_sell.get("order_id") or _tp_sell.get("id"))):
                         log.warning(f"⚠️ STOCK TP {symbol}: sell rejected/failed — NOT logging phantom close")
                         _trade_cooldown[symbol] = datetime.now()
                         continue

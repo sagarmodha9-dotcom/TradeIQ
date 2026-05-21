@@ -81,7 +81,7 @@ def required_stock_confidence(open_stock_count=0):
     if open_stock_count >= 5:
         return max(base, 0.80)
     if open_stock_count >= 4:
-        return max(base, 0.76)
+        return max(base, 0.72)
     return base
 
 def has_enough_bar_data(symbol, bars, min_bars=50):
@@ -112,6 +112,53 @@ def dynamic_take_profit(pnl_pct):
     return "hold"
 
 
+
+
+def log_trade_setup_snapshot(symbol, signal, regime, stage="entry_candidate"):
+    """
+    Saves setup details so we can later see what actually wins/loses.
+    """
+    try:
+        import json, os
+        from datetime import datetime
+
+        path = "trade_setup_analytics.json"
+        data = []
+
+        if os.path.exists(path):
+            try:
+                with open(path) as f:
+                    data = json.load(f)
+            except Exception:
+                data = []
+
+        indicators = signal.get("indicators", {}) or {}
+        macd = indicators.get("macd", {}) or {}
+
+        row = {
+            "timestamp": datetime.now().isoformat(),
+            "stage": stage,
+            "symbol": symbol,
+            "action": signal.get("action"),
+            "confidence": signal.get("confidence"),
+            "regime": regime,
+            "entry_price": signal.get("entry_price"),
+            "rsi": indicators.get("rsi_14"),
+            "macd_histogram": macd.get("histogram"),
+            "ema_alignment": indicators.get("ema_alignment"),
+            "price_vs_ema20": indicators.get("price_vs_ema20"),
+            "price_vs_vwap": indicators.get("price_vs_vwap"),
+            "volume_ratio": indicators.get("volume_ratio"),
+            "reasoning": signal.get("reasoning", "")[:500],
+        }
+
+        data.append(row)
+
+        with open(path, "w") as f:
+            json.dump(data[-2000:], f, indent=2)
+
+    except Exception as e:
+        log.warning(f"Trade setup analytics failed for {symbol}: {e}")
 
 def get_market_regime_from_signal(signal):
     """
@@ -575,6 +622,7 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
                 if signal["action"] == "BUY" and not _cooldown_active:
                     _regime = get_market_regime_from_signal(signal)
                     log.info(f"REGIME {symbol}: {_regime}")
+                    log_trade_setup_snapshot(symbol, signal, _regime, stage="buy_signal_seen")
 
                     open_stock_count = len(existing_positions)
                     needed_conf = required_stock_confidence(open_stock_count)
@@ -628,6 +676,22 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
                     except:
                         avail_cash = base_size
                     size_usd = get_position_size(symbol, base_size, ibkr)
+
+                    # HARD duplicate protection: check live broker positions
+                    try:
+                        live_positions = ibkr.get_positions()
+                        already_owned = any(
+                            str(pos.get("symbol","")).strip() == symbol
+                            for pos in live_positions
+                        )
+
+                        if already_owned:
+                            log.warning(f"{symbol}: live Alpaca position already exists — blocking duplicate buy")
+                            continue
+
+                    except Exception as e:
+                        log.warning(f"{symbol}: live duplicate check failed: {e}")
+
                     _ordered_this_scan.add(symbol)
                     fill = ibkr.place_market_order(symbol, "buy", notional=size_usd)
                     if fill and (fill.get("success") or fill.get("status") in ["filled", "partially_filled", "Filled", "accepted", "pending_new", "new"]):
@@ -1449,8 +1513,112 @@ def run_options_scan(options_client, options_analyzer, stock_signals, pt):
             log.error(f"Options scan error {signal.get('product_id')}: {e}")
     return positions
 
+
+def broker_reconciliation_guard(ibkr=None, options_client=None):
+    """
+    Safety guard: compare broker positions vs bot_state.
+    Broker truth wins. If mismatch is large, block new entries.
+    """
+    try:
+        import json, os
+
+        state_file = "bot_state.json"
+        if not os.path.exists(state_file):
+            return True
+
+        with open(state_file) as f:
+            state = json.load(f)
+
+        bot_positions = state.get("positions", [])
+        bot_symbols = set(str(p.get("product_id", "")).strip() for p in bot_positions)
+
+        broker_symbols = set()
+
+        # Alpaca stock positions
+        try:
+            if ibkr:
+                for p in ibkr.get_positions():
+                    sym = str(p.get("symbol", "")).strip()
+                    if sym:
+                        broker_symbols.add(sym)
+        except Exception as e:
+            log.warning(f"Reconcile guard: Alpaca check failed: {e}")
+
+        # Tastytrade option positions
+        try:
+            if options_client and getattr(options_client, "tt", None):
+                for p in options_client.tt.get_positions():
+                    sym = str(p.get("symbol", "")).strip()
+                    if sym:
+                        broker_symbols.add(sym)
+        except Exception as e:
+            log.warning(f"Reconcile guard: Tastytrade check failed: {e}")
+
+        missing_in_broker = bot_symbols - broker_symbols
+        missing_in_bot = broker_symbols - bot_symbols
+
+        mismatch_count = len(missing_in_broker) + len(missing_in_bot)
+
+        if mismatch_count > 2:
+            log.critical(
+                f"🚫 RECONCILIATION KILL: broker/bot mismatch too large | "
+                f"missing_in_broker={list(missing_in_broker)} | missing_in_bot={list(missing_in_bot)}"
+            )
+            try:
+                import risk_manager
+                risk_manager.activate_kill_switch(reason="broker_bot_position_mismatch")
+            except Exception:
+                pass
+            return False
+
+        return True
+
+    except Exception as e:
+        log.error(f"Reconciliation guard failed: {e}")
+        return True
+
+
+def order_failure_kill_guard():
+    """
+    Safety guard: kill trading if too many order failures happen.
+    """
+    try:
+        import json, os
+
+        path = "safety_state.json"
+        if not os.path.exists(path):
+            return True
+
+        with open(path) as f:
+            state = json.load(f)
+
+        failures = int(state.get("order_failures", 0) or 0)
+
+        if failures >= 3:
+            log.critical(f"🚫 ORDER FAILURE KILL: {failures} order failures")
+            try:
+                import risk_manager
+                risk_manager.activate_kill_switch(reason="too_many_order_failures")
+            except Exception:
+                pass
+            return False
+
+        return True
+
+    except Exception as e:
+        log.warning(f"Order failure guard error: {e}")
+        return True
+
 def run_scan(cb, ibkr, analyzer, stock_analyzer, tm, pt, options_client=None, options_analyzer=None):
     log.info(f"\nScan @ {datetime.now().strftime('%H:%M:%S')}")
+
+    if not order_failure_kill_guard():
+        log.warning("Scan blocked by order failure kill guard")
+        return []
+
+    if not broker_reconciliation_guard(ibkr, options_client):
+        log.warning("Scan blocked by reconciliation guard")
+        return []
     # Sync Alpaca positions every scan — keeps dashboard always up to date
     try:
         import json as _j

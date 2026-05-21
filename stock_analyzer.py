@@ -231,5 +231,6 @@ class StockAnalyzer:
             log.info(f"{symbol}: {signal['action']} | conf={signal['confidence']:.0%} | entry=${signal['entry_price']:,.2f}")
             return signal
         except Exception as e:
-            log.error(f"{symbol}: Analysis error: {e}")
+            log.warning(f"{symbol}: AI unavailable -> using technical-only mode ({e})")
+            return signal
             return None

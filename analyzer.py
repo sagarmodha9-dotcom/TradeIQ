@@ -156,5 +156,6 @@ class Analyzer:
             )
             return signal
         except Exception as e:
-            log.error(f"{product_id}: Analysis error: {e}")
+            log.warning(f"{product_id}: AI unavailable -> using technical-only mode ({e})")
+            return {"safe": True, "sentiment": "neutral"}
             return None

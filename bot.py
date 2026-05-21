@@ -620,6 +620,8 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
     # No time-based cooldown — daily loss limit is the safety net
     signals, positions = [], []
     for symbol in config.STOCK_SYMBOLS:
+        if symbol.upper() in [s.strip().upper() for s in getattr(config, "EXCLUDED_SYMBOLS", [])]:
+            continue
         try:
             bars   = ibkr.get_bars(symbol, timeframe="1Hour", limit=100)
             if not has_enough_bar_data(symbol, bars, min_bars=50):
@@ -1803,6 +1805,8 @@ def run_premarket_scan(ibkr, analyzer, stock_analyzer):
     from alpaca_client import AlpacaClient
     ac = AlpacaClient()
     for symbol in config.STOCK_SYMBOLS:
+        if symbol.upper() in [s.strip().upper() for s in getattr(config, "EXCLUDED_SYMBOLS", [])]:
+            continue
         try:
             hist = ac.get_bars(symbol, timeframe="1Day", limit=5)
             if len(hist) < 2:
@@ -1930,6 +1934,8 @@ def run_earnings_options_scan(options_client, ibkr):
         return
 
     for symbol in config.STOCK_SYMBOLS:
+        if symbol.upper() in [s.strip().upper() for s in getattr(config, "EXCLUDED_SYMBOLS", [])]:
+            continue
         try:
             dte = cached_days_to_earnings(symbol)
             if dte is None or not (5 <= dte <= 10):

@@ -15,7 +15,7 @@ PAPER_BALANCE        = float(os.getenv("PAPER_BALANCE", 14949))
 LIVE_ACCOUNT_BALANCE = float(os.getenv("LIVE_ACCOUNT_BALANCE", 2000))
 
 MAX_POSITION_PCT     = float(os.getenv("MAX_POSITION_PCT", 0.05))
-STOP_LOSS_PCT        = float(os.getenv("STOP_LOSS_PCT", 0.03))
+STOP_LOSS_PCT        = float(os.getenv("STOP_LOSS_PCT", 0.045))
 TAKE_PROFIT_PCT      = float(os.getenv("TAKE_PROFIT_PCT", 0.04))
 STOCK_SL_PCT         = float(os.getenv("STOCK_SL_PCT", 0.03))
 STOCK_TP_PCT         = float(os.getenv("STOCK_TP_PCT", 0.06))
@@ -104,17 +104,17 @@ SYMBOL_TP_PCT = {
 }
 
 SYMBOL_SL_PCT = {
-    # High volatility — wider SL to avoid shakeouts
-    "TSLA": 0.04, "NVDA": 0.035, "COIN": 0.045, "AMD":  0.035,
-    "HOOD": 0.04, "SOFI": 0.04,  "PLTR": 0.035, "APP":  0.04,
-    "SNAP": 0.04, "ROKU": 0.04,  "SHOP": 0.035, "SQ":   0.035,
-    "BABA": 0.035,
-    # Mid volatility
-    "META": 0.03, "GOOGL": 0.03, "AMZN": 0.03, "MSFT": 0.03,
-    "AAPL": 0.03, "NFLX":  0.03, "UBER": 0.03, "DIS":  0.03,
-    "INTC": 0.03,
-    # Low volatility — tight SL
-    "SPY":  0.015, "QQQ": 0.015, "JPM":  0.02, "BAC":  0.02,
+    # High volatility — wider SL to avoid shakeouts (widened 5/21 from 3.5-4.5% to 5-6%)
+    "TSLA": 0.055, "NVDA": 0.05, "COIN": 0.06, "AMD":  0.05,
+    "HOOD": 0.055, "SOFI": 0.055,"PLTR": 0.05, "APP":  0.055,
+    "SNAP": 0.055, "ROKU": 0.055,"SHOP": 0.05, "SQ":   0.05,
+    "BABA": 0.05,
+    # Mid volatility (widened from 3% to 4.5%)
+    "META": 0.045, "GOOGL": 0.045, "AMZN": 0.045, "MSFT": 0.045,
+    "AAPL": 0.045, "NFLX":  0.045, "UBER": 0.045, "DIS":  0.045,
+    "INTC": 0.045,
+    # Low volatility (widened from 1.5-2% to 2.5-3%)
+    "SPY":  0.025, "QQQ": 0.025, "JPM":  0.03, "BAC":  0.03,
 }
 
 def get_tp_pct(symbol):
@@ -131,3 +131,7 @@ EARNINGS_PLAY_BUDGET_CAP  = int(os.getenv("EARNINGS_PLAY_BUDGET_CAP", 300))     
 
 # Cheap underlyings for options — symbols where ATM weekly calls fit in <$200 budget (added 5/21)
 CHEAP_OPTIONS_UNIVERSE = os.getenv("CHEAP_OPTIONS_UNIVERSE", "SOFI,INTC,PLTR,SNAP,F,BAC,HOOD,NU,T,UBER,AAL,CCL,RIVN,LCID,PFE,WBD,GRAB").split(",")
+
+
+# Blacklisted symbols (added 5/21) — 0% win rate in last 45 trades
+EXCLUDED_SYMBOLS = os.getenv("EXCLUDED_SYMBOLS", "META,UBER").split(",")

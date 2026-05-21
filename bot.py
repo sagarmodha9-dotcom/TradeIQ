@@ -266,6 +266,37 @@ def get_stock_streak_multiplier():
         return 1.0
 
 
+
+# Consecutive loss tracker (added 5/21) — scales position size down during cold streaks
+def _get_consecutive_losses():
+    """Read trade_history.json, count consecutive losses ending at most recent trade."""
+    try:
+        import json
+        with open('trade_history.json') as f:
+            trades = json.load(f)
+        if not trades:
+            return 0
+        sorted_trades = sorted(trades, key=lambda x: str(x.get('closed_at','')), reverse=True)
+        streak = 0
+        for t in sorted_trades:
+            pnl = float(t.get('pnl_usd', 0))
+            if pnl < 0:
+                streak += 1
+            else:
+                break
+        return streak
+    except Exception:
+        return 0
+
+def _loss_streak_multiplier():
+    """Return position size multiplier based on consecutive losses."""
+    losses = _get_consecutive_losses()
+    if losses >= 5:
+        return 0.25  # 25% size after 5+ losses
+    elif losses >= 3:
+        return 0.50  # 50% size after 3-4 losses
+    return 1.0
+
 def dynamic_position_size(confidence, total_balance, signal=None):
     # Stock-only position sizing with conservative streak + regime scaling
     base = total_balance * 0.10
@@ -282,7 +313,10 @@ def dynamic_position_size(confidence, total_balance, signal=None):
     final_size = size * streak_multiplier * regime_multiplier
 
     # Hard cap: never let one stock exceed 15% of account
-    return min(final_size, total_balance * 0.15)
+    _streak_mult = _loss_streak_multiplier()
+    if _streak_mult < 1.0:
+        log.info(f"⚠️  Loss streak active: position size × {_streak_mult}")
+    return _streak_mult * min(final_size, total_balance * 0.15)
 
 def valid_trade_price(symbol, price, min_price=1.0):
     try:

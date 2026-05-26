@@ -19,16 +19,19 @@ def _load_initial_balance():
     return 1000.0
 
 def _load_initial_tt_balance():
+    # Options disabled — TT is empty, always return 0
+    import os
+    if os.getenv("OPTIONS_ENABLED", "false").lower() != "true":
+        return 0.0
     try:
         from tastytrade_client import TastytradeClient
         tt = TastytradeClient()
         if tt.session_token:
             bal = tt.get_account_balance()
-            if bal > 0:
-                return bal
+            return bal  # return whatever it is, including 0
     except:
         pass
-    return 500.0
+    return 0.0
 
 _balance_cache = {"ibkr": _load_initial_balance(), "tt": _load_initial_tt_balance(), "updated": 0}
 
@@ -77,9 +80,9 @@ def _refresh_live_background():
 
                         if tt.session_token:
                             live_bal = tt.get_account_balance()
-                            if live_bal > 0:
-                                _balance_cache["tt"] = live_bal
-                                _live_cache["tt_balance"] = live_bal
+                            # Always update cache, even if 0 (options disabled scenario)
+                            _balance_cache["tt"] = live_bal
+                            _live_cache["tt_balance"] = live_bal
 
                             positions = tt.get_positions()
                             live_options = {}

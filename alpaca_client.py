@@ -76,7 +76,9 @@ class AlpacaClient:
                 except: pass
             return result
         end   = datetime.now(timezone.utc)
-        start = end - timedelta(hours=limit * 2)
+        # Widen lookback to account for non-trading hours
+        # 100 hourly bars needs ~15 trading days = ~3 calendar weeks of hours
+        start = end - timedelta(hours=limit * 8)
         base_ep = (
             f"/v2/stocks/{symbol}/bars"
             f"?timeframe={timeframe}"

@@ -18606,5 +18606,53 @@
     "price_vs_vwap": 5.35,
     "volume_ratio": 1.09,
     "reasoning": "APP presents a solid entry with multiple confluent bullish signals. Price is 4.40% above EMA20 and 5.35% above VWAP, indicating strong uptrend positioning. RSI at 64.5 is in healthy bull zone (40-65 range optimal) without overbought conditions. MACD histogram of 3.4198 is significantly positive with main line above signal line, confirming sustained bullish momentum. EMA alignment is bullish with price above both EMA9 ($479.50) and EMA20 ($474.37). Volume ratio of 1.09x confirms participation. Bo"
+  },
+  {
+    "timestamp": "2026-05-29T10:39:04.688256",
+    "stage": "buy_signal_seen",
+    "symbol": "BABA",
+    "action": "BUY",
+    "confidence": 0.72,
+    "regime": "NEUTRAL",
+    "entry_price": 141.95,
+    "rsi": 55.29,
+    "macd_histogram": 0.843,
+    "ema_alignment": "bullish",
+    "price_vs_ema20": 0.96,
+    "price_vs_vwap": 2.8,
+    "volume_ratio": 1.0,
+    "reasoning": "BABA presents a solid medium-term entry with multiple aligned bullish indicators. RSI at 55.29 is healthy (mid-range, not overbought), MACD histogram is positive at 0.8430 with signal line above zero, confirming momentum. Price trades above both EMA9 ($142.62) and EMA20 ($140.60) in bullish alignment, +0.96% above 20-day EMA and +2.80% above VWAP showing strength. Bollinger %B at 0.672 indicates price near upper band but not overextended. No RSI divergence but positive MACD structure and price-a"
+  },
+  {
+    "timestamp": "2026-05-29T10:39:33.171466",
+    "stage": "buy_signal_seen",
+    "symbol": "COIN",
+    "action": "BUY",
+    "confidence": 0.72,
+    "regime": "TREND",
+    "entry_price": 217.12,
+    "rsi": 61.79,
+    "macd_histogram": 1.5147,
+    "ema_alignment": "bullish",
+    "price_vs_ema20": 5.21,
+    "price_vs_vwap": 9.65,
+    "volume_ratio": 1.1,
+    "reasoning": "COIN presents a solid entry opportunity with bullish technical alignment. Price is 5.21% above EMA20 and trading above both EMA9 and EMA20 with proper alignment. RSI at 61.79 is healthy (mid-range, not overbought), indicating room for upside without excessive momentum. MACD histogram is positive at 1.5147 with MACD above signal line, confirming bullish momentum. Price is significantly elevated above VWAP (+9.65%), showing institutional buying strength. Bollinger %B at 0.954 indicates price is ne"
+  },
+  {
+    "timestamp": "2026-05-29T10:39:46.877982",
+    "stage": "buy_signal_seen",
+    "symbol": "APP",
+    "action": "BUY",
+    "confidence": 0.74,
+    "regime": "TREND",
+    "entry_price": 495.23,
+    "rsi": 64.5,
+    "macd_histogram": 3.4198,
+    "ema_alignment": "bullish",
+    "price_vs_ema20": 4.4,
+    "price_vs_vwap": 5.35,
+    "volume_ratio": 1.09,
+    "reasoning": "APP presents a strong technical setup with multiple bullish confirmations. Price is 4.40% above EMA20 and 5.35% above VWAP, establishing clear uptrend structure. RSI at 64.5 is healthy (not overbought), positioned in the optimal 40-65 buy zone. MACD histogram is significantly positive at 3.42, indicating strong bullish momentum despite neutral crossover signal line. EMA alignment is bullish (price > EMA9 > EMA20), confirming trend strength. Bollinger %B at 0.893 shows price near upper band with "
   }
 ]

@@ -799,7 +799,13 @@ def monitor_stock_positions(ibkr, pt):
             try:
                 current = ibkr.get_latest_price(symbol)
                 if not current or current <= 0:
-                    continue
+                    # Price feed hiccup — use last known price so position stays managed
+                    current = float(pos.get("last_known_price", 0)) or float(pos.get("entry_price", 0))
+                    if current <= 0:
+                        continue
+                    log.warning(f"{symbol}: price feed returned 0, using last known ${current:.2f}")
+                else:
+                    pos["last_known_price"] = current
                 pnl = (current - entry) * float(pos["quantity"])
                 pnl_pct = (current - entry) / entry * 100 if entry > 0 else 0
                 # Progressive profit lock:
@@ -975,6 +981,15 @@ def monitor_stock_positions(ibkr, pt):
                     pos['pnl_pct'] = round(pnl_pct, 2)
             except Exception as e:
                 log.error(f"Stock monitor error {symbol}: {e}")
+        # PERSIST state — save trailing stop updates and pnl back to disk
+        try:
+            import json as _sj
+            # Remove closed positions from state
+            state["positions"] = [p for p in state.get("positions", []) if p.get("product_id") not in closed or p.get("market") != "stocks"]
+            with open("bot_state.json", "w") as _sf:
+                _sj.dump(state, _sf, indent=2, default=str)
+        except Exception as _se:
+            log.error(f"Failed to save bot_state after monitor: {_se}")
     except Exception as e:
         log.error(f"monitor_stock_positions error: {e}")
 

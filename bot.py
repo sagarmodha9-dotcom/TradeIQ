@@ -1004,6 +1004,9 @@ def get_option_price_yf(contract_symbol):
 
 def monitor_option_positions(options_client):
     """Update P&L on open options positions using Yahoo Finance."""
+    # Options disabled — skip entire monitor (no phantom retries, no Telegram spam)
+    if getattr(config, "MAX_OPEN_OPTIONS", 0) <= 0:
+        return
     try:
         import json
         with open("bot_state.json") as f:

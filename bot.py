@@ -897,7 +897,10 @@ def monitor_stock_positions(ibkr, pt):
                                 except Exception as _ve:
                                     log.warning(f"TIME EXIT {symbol}: broker verify error ({_ve}) — proceeding cautiously")
                             if _sell_failed:
-                                log.warning(f"⚠️ TIME EXIT {symbol}: sell order failed or rejected — NOT logging phantom close")
+                                if isinstance(_sell_result, dict) and _sell_result.get("pdt_held"):
+                                    log.info(f"{symbol}: PDT-hold — TIME EXIT deferred, holding position (closes overnight/after June 4)")
+                                else:
+                                    log.warning(f"⚠️ TIME EXIT {symbol}: sell order failed or rejected — NOT logging phantom close")
                                 _trade_cooldown[symbol] = datetime.now()
                                 continue
                             from trade_history import save_trade
@@ -919,7 +922,10 @@ def monitor_stock_positions(ibkr, pt):
                     # Verify sell actually executed before logging close
                     _sl_sell = ibkr.place_market_order(symbol, "sell", qty=float(pos["quantity"]))
                     if not _sl_sell or (isinstance(_sl_sell, dict) and _sl_sell.get("success") is False) or (isinstance(_sl_sell, dict) and not (_sl_sell.get("order_id") or _sl_sell.get("id"))):
-                        log.warning(f"⚠️ STOCK SL {symbol}: sell rejected/failed — NOT logging phantom close")
+                        if isinstance(_sl_sell, dict) and _sl_sell.get("pdt_held"):
+                            log.info(f"{symbol}: PDT-hold — SL deferred, holding position (closes overnight/after June 4)")
+                        else:
+                            log.warning(f"⚠️ STOCK SL {symbol}: sell rejected/failed — NOT logging phantom close")
                         _trade_cooldown[symbol] = datetime.now()
                         continue
                     _trade_cooldown[symbol] = datetime.now()
@@ -948,7 +954,10 @@ def monitor_stock_positions(ibkr, pt):
                     # Verify sell actually executed before logging close
                     _tp_sell = ibkr.place_market_order(symbol, "sell", qty=float(pos["quantity"]))
                     if not _tp_sell or (isinstance(_tp_sell, dict) and _tp_sell.get("success") is False) or (isinstance(_tp_sell, dict) and not (_tp_sell.get("order_id") or _tp_sell.get("id"))):
-                        log.warning(f"⚠️ STOCK TP {symbol}: sell rejected/failed — NOT logging phantom close")
+                        if isinstance(_tp_sell, dict) and _tp_sell.get("pdt_held"):
+                            log.info(f"{symbol}: PDT-hold — TP deferred, holding position (closes overnight/after June 4)")
+                        else:
+                            log.warning(f"⚠️ STOCK TP {symbol}: sell rejected/failed — NOT logging phantom close")
                         _trade_cooldown[symbol] = datetime.now()
                         continue
                     _trade_cooldown[symbol] = datetime.now()

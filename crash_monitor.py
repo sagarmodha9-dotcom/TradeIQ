@@ -73,7 +73,7 @@ def check_retry_storm():
                 if ts >= cutoff_str:
                     recent.append(ln)
         # Count problematic patterns
-        rejected = sum(1 for ln in recent if "sell rejected" in ln.lower() or "sell order failed" in ln.lower())
+        rejected = sum(1 for ln in recent if ("sell rejected" in ln.lower() or "sell order failed" in ln.lower()) and "pdt-hold" not in ln.lower() and "pdt_held" not in ln.lower())
         close_blocked = sum(1 for ln in recent if "OPTIONS CLOSE BLOCKED" in ln)
         retry_close = sum(1 for ln in recent if "AUTO-CLOSE" in ln and "cutting loss" in ln)
         bp_skipped = sum(1 for ln in recent if "insufficient buying power" in ln.lower())

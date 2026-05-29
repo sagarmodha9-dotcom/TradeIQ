@@ -140,6 +140,20 @@ class AlpacaClient:
                 "fill_value_usd": notional or (qty * fill_price),
                 "timestamp":      datetime.now(timezone.utc).isoformat(),
             }
+        # --- TEMPORARY PDT GUARD (remove June 3 for day trading — PDT dies June 4) ---
+        # If a sell would be blocked by Pattern Day Trader protection, hold quietly
+        # instead of spamming rejects that trigger false retry-storm alerts.
+        if side == "sell":
+            try:
+                _acct = self.get_account()
+                _pdt = _acct.get("pattern_day_trader", False)
+                _dtc = float(_acct.get("daytrade_count", 0) or 0)
+                if _pdt or _dtc >= 3:
+                    log.info(f"{symbol}: PDT-hold — sell deferred (PDT protection active, will close overnight/after June 4)")
+                    return {"success": False, "pdt_held": True, "symbol": symbol, "side": side}
+            except Exception:
+                pass
+        # --- END PDT GUARD ---
         # Check if pre/post market
         from datetime import datetime, timezone
         now = datetime.now(timezone.utc)

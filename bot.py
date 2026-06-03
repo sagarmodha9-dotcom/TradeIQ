@@ -616,7 +616,7 @@ def print_banner(is_live):
     mode = "LIVE TRADING" if is_live else "PAPER TRADING"
     print("\n" + "="*60)
     print(f"  TradeIQ AI Bot  |  {mode}")
-    print(f"  Crypto: top {config.TOP_PAIRS_COUNT} pairs | Stocks: {len(config.STOCK_SYMBOLS)} symbols")
+    print(f"  Crypto: DISABLED | Stocks: {len(config.STOCK_SYMBOLS)} symbols | DAY TRADING: {'ON' if getattr(config,'DAY_TRADING_MODE',False) else 'off'}")
     print(f"  SL: {config.STOP_LOSS_PCT:.0%}  TP: {config.TAKE_PROFIT_PCT:.0%}  Min conf: {config.MIN_CONFIDENCE:.0%}")
     print("="*60 + "\n")
     # Telegram ping on every startup so user knows if launchd restarts the bot

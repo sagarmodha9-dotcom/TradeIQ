@@ -31,6 +31,189 @@ from logger import log
 
 # In-memory cooldown
 _trade_cooldown = {}
+
+# ===== DAY TRADING HELPERS (June 3, 2026) =====
+import json as _dt_json, os as _dt_os
+from datetime import timedelta as _dt_timedelta
+from zoneinfo import ZoneInfo as _ZoneInfo
+_ET = _ZoneInfo("America/New_York")
+_DAY_STATE_FILE = "day_state.json"
+_acct_cache = {"t": 0, "d": {}}
+_th_cache = {"mtime": 0, "last": {}}
+_force_closed_today = {"date": ""}
+
+def _now_et():
+    return datetime.now(_ET)
+
+def _day_state():
+    today = _now_et().strftime("%Y-%m-%d")
+    try:
+        with open(_DAY_STATE_FILE) as f: s = _dt_json.load(f)
+    except Exception:
+        s = {}
+    if s.get("date") != today:
+        s = {"date": today, "trades_opened": 0, "halted": False, "halt_reason": ""}
+        _save_day_state(s)
+    return s
+
+def _save_day_state(s):
+    try:
+        with open(_DAY_STATE_FILE, "w") as f: _dt_json.dump(s, f, indent=2)
+    except Exception:
+        pass
+
+def day_trade_increment_trades():
+    s = _day_state()
+    s["trades_opened"] = int(s.get("trades_opened", 0)) + 1
+    _save_day_state(s)
+    log.info(f"📊 Day trades opened today: {s['trades_opened']}/{config.MAX_TRADES_PER_DAY}")
+
+def _cached_account(ibkr):
+    import time as _t
+    if _t.time() - _acct_cache["t"] > 20:
+        try:
+            _acct_cache["d"] = ibkr.get_account() or {}
+            _acct_cache["t"] = _t.time()
+        except Exception:
+            pass
+    return _acct_cache["d"]
+
+def _today_realized():
+    try:
+        with open("trade_history.json") as f: t = _dt_json.load(f)
+        today = _now_et().strftime("%Y-%m-%d")
+        return sum(float(x.get("pnl_usd", 0)) for x in t if str(x.get("date", "")) == today)
+    except Exception:
+        return 0.0
+
+def _recent_losses(window_min):
+    try:
+        with open("trade_history.json") as f: t = _dt_json.load(f)
+        cutoff = datetime.now() - _dt_timedelta(minutes=window_min)
+        n = 0
+        for x in t:
+            try:
+                d = datetime.fromisoformat(str(x.get("closed_at", "")).replace("Z", "").split("+")[0])
+            except Exception:
+                continue
+            if d >= cutoff and float(x.get("pnl_usd", 0)) < 0:
+                n += 1
+        return n
+    except Exception:
+        return 0
+
+def _last_trade_outcome(symbol):
+    try:
+        m = _dt_os.path.getmtime("trade_history.json")
+        if m != _th_cache["mtime"]:
+            with open("trade_history.json") as f: t = _dt_json.load(f)
+            last = {}
+            for x in sorted(t, key=lambda r: str(r.get("closed_at", ""))):
+                pid = x.get("product_id")
+                if pid:
+                    last[pid] = "win" if float(x.get("pnl_usd", 0)) > 0 else "loss"
+            _th_cache["mtime"] = m
+            _th_cache["last"] = last
+        return _th_cache["last"].get(symbol)
+    except Exception:
+        return None
+
+def cooldown_secs_for(symbol):
+    """Outcome-aware: press winners (12m), back off losers (35m)."""
+    if not getattr(config, "DAY_TRADING_MODE", False):
+        return 120
+    if _last_trade_outcome(symbol) == "win":
+        return config.COOLDOWN_WIN_MIN * 60
+    return config.COOLDOWN_LOSS_MIN * 60  # loss or unknown -> conservative
+
+def day_trade_entry_allowed(ibkr):
+    """Single gate for all day-trade entry rules. Returns (ok, reason)."""
+    if not getattr(config, "DAY_TRADING_MODE", False):
+        return True, ""
+    now = _now_et()
+    try:
+        hh, mm = config.NO_ENTRY_BEFORE_ET.split(":")
+        if (now.hour, now.minute) < (int(hh), int(mm)):
+            return False, f"before entry window ({config.NO_ENTRY_BEFORE_ET} ET)"
+    except Exception:
+        pass
+    if (now.hour, now.minute) >= (config.FORCE_CLOSE_HOUR_ET, config.FORCE_CLOSE_MINUTE_ET):
+        return False, "past force-close — no new entries"
+    s = _day_state()
+    if s.get("halted"):
+        return False, f"halted: {s.get('halt_reason','')}"
+    if int(s.get("trades_opened", 0)) >= config.MAX_TRADES_PER_DAY:
+        return False, f"max trades/day reached ({config.MAX_TRADES_PER_DAY})"
+    realized = _today_realized()
+    if realized <= -config.DAILY_LOSS_LIMIT_USD:
+        s["halted"] = True
+        s["halt_reason"] = f"daily loss limit (${realized:.2f})"
+        _save_day_state(s)
+        try:
+            from notifier import _send
+            _send(f"🛑 <b>DAILY LOSS LIMIT HIT</b>: ${realized:.2f} — bot halted for the day")
+        except Exception:
+            pass
+        return False, s["halt_reason"]
+    if _recent_losses(config.CONSEC_LOSS_BREAKER_WINDOW_MIN) >= config.CONSEC_LOSS_BREAKER_COUNT:
+        return False, f"{config.CONSEC_LOSS_BREAKER_COUNT}+ losses in {config.CONSEC_LOSS_BREAKER_WINDOW_MIN}min — cooling off"
+    acct = _cached_account(ibkr)
+    try:
+        eq = float(acct.get("equity", 0) or 0)
+        bp = float(acct.get("buying_power", 0) or 0)
+        size = eq * config.POSITION_SIZE_PCT
+        if eq and eq < config.EQUITY_FLOOR:
+            return False, f"equity ${eq:.0f} below floor ${config.EQUITY_FLOOR:.0f}"
+        if bp and bp < size * 1.5:
+            return False, f"BP ${bp:.0f} < 1.5x size ${size*1.5:.0f}"
+    except Exception:
+        pass
+    return True, ""
+
+def day_trade_force_close(ibkr):
+    """At/after force-close time ET, close ALL stock positions and log them."""
+    if not getattr(config, "DAY_TRADING_MODE", False):
+        return
+    now = _now_et()
+    if (now.hour, now.minute) < (config.FORCE_CLOSE_HOUR_ET, config.FORCE_CLOSE_MINUTE_ET) or now.hour >= 16:
+        return
+    today = now.strftime("%Y-%m-%d")
+    if _force_closed_today["date"] == today:
+        return
+    try:
+        positions = ibkr.get_positions() or []
+    except Exception:
+        positions = []
+    if not positions:
+        _force_closed_today["date"] = today
+        return
+    log.info(f"⏰ FORCE-CLOSE {config.FORCE_CLOSE_HOUR_ET:02d}:{config.FORCE_CLOSE_MINUTE_ET:02d} ET — closing {len(positions)} position(s)")
+    for p in positions:
+        try:
+            sym = p["symbol"]
+            qty = float(p["qty"])
+            entry = float(p.get("avg_entry_price", 0) or 0)
+            r = ibkr.place_market_order(sym, "sell", qty=qty)
+            ok2 = bool(r and isinstance(r, dict) and (r.get("order_id") or r.get("id")))
+            log.info(f"  force-close {sym}: {'OK' if ok2 else 'FAILED'}")
+            if ok2 and entry > 0:
+                exit_px = float(r.get("fill_price") or 0) or float(ibkr.get_latest_price(sym) or 0)
+                if exit_px > 0:
+                    pnl = round((exit_px - entry) * qty, 4)
+                    try:
+                        from trade_history import save_trade
+                        save_trade({"product_id": sym, "side": "BUY", "entry_price": entry,
+                                    "exit_price": exit_px, "pnl_usd": pnl,
+                                    "status": "closed_force", "market": "stocks",
+                                    "closed_at": datetime.now().isoformat(),
+                                    "date": today})
+                    except Exception as _se:
+                        log.error(f"  force-close save_trade {sym}: {_se}")
+                _trade_cooldown[sym] = datetime.now()
+        except Exception as e:
+            log.error(f"  force-close error: {e}")
+    _force_closed_today["date"] = today
+# ===== END DAY TRADING HELPERS =====
 _immediate_redeploy = False  # Flag to trigger instant rescan after TP close
 from alpaca_client import AlpacaClient
 from analyzer import Analyzer
@@ -298,6 +481,15 @@ def _loss_streak_multiplier():
     return 1.0
 
 def dynamic_position_size(confidence, total_balance, signal=None):
+    # DAY TRADING: size = fixed % of current equity. Account grows -> size grows.
+    # Never mood-based. The % only changes at reviews (config POSITION_SIZE_PCT).
+    if getattr(config, "DAY_TRADING_MODE", False):
+        try:
+            eq = float(total_balance)
+            size = eq * config.POSITION_SIZE_PCT
+            return max(50.0, round(size, 2))
+        except Exception:
+            pass
     # Stock-only position sizing with conservative streak + regime scaling
     base = total_balance * 0.10
     streak_multiplier = get_stock_streak_multiplier()
@@ -623,7 +815,7 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
         if symbol.upper() in [s.strip().upper() for s in getattr(config, "EXCLUDED_SYMBOLS", [])]:
             continue
         try:
-            bars   = ibkr.get_bars(symbol, timeframe="1Hour", limit=100)
+            bars   = ibkr.get_bars(symbol, timeframe=config.BAR_TIMEFRAME, limit=100)
             if not has_enough_bar_data(symbol, bars, min_bars=50):
                 continue
             signal = stock_analyzer.analyze(symbol, bars)
@@ -643,19 +835,24 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
                     log.warning(f"[EARNINGS BLOCK] {symbol}: earnings in {_entry_dte} day(s) — skipping new entry")
                     continue
                 
-                # 2 minute cooldown after TP/SL — prevents buying right at peak
+                # Outcome-aware cooldown — press winners (12m), back off losers (35m)
                 _cooldown_active = False
                 if symbol in _trade_cooldown:
+                    _cd_secs = cooldown_secs_for(symbol)
                     elapsed = (datetime.now() - _trade_cooldown[symbol]).total_seconds()
-                    if elapsed < 120:  # 2 minutes
+                    if elapsed < _cd_secs:
                         _cooldown_active = True
-                        log.info(f"{symbol}: cooldown active ({120-elapsed:.0f}s remaining)")
+                        log.info(f"{symbol}: cooldown active ({(_cd_secs-elapsed)/60:.1f}m left, last={_last_trade_outcome(symbol) or 'n/a'})")
                     else:
                         del _trade_cooldown[symbol]  # cooldown expired
                 open_stock_count = len(existing_positions)
                 needed_conf = required_stock_confidence(open_stock_count)
 
                 if signal["action"] == "BUY" and not _cooldown_active:
+                    _ok, _why = day_trade_entry_allowed(ibkr)
+                    if not _ok:
+                        log.info(f"{symbol}: DAY-TRADE GATE — {_why}")
+                        continue
                     _regime = get_market_regime_from_signal(signal)
                     log.info(f"REGIME {symbol}: {_regime}")
                     log_trade_setup_snapshot(symbol, signal, _regime, stage="buy_signal_seen")
@@ -746,6 +943,7 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
                         except:
                             entry_price = float(fill.get("fill_price") or signal["entry_price"] or 0)
                             qty = float(size_usd / entry_price if entry_price > 0 else 1)
+                        day_trade_increment_trades()
                         # Telegram alert for trade opened
                         from notifier import alert_trade_opened
                         alert_trade_opened(symbol, "BUY", entry_price, round(qty, 4),
@@ -816,7 +1014,9 @@ def monitor_stock_positions(ibkr, pt):
                 new_sl = None
                 sl_reason = None
 
-                if current >= entry * 1.08:
+                if getattr(config, "DAY_TRADING_MODE", False):
+                    pass  # day mode: TP/SL/force-close only — swing trail ladder off
+                elif current >= entry * 1.08:
                     new_sl = max(entry * 1.04, current * 0.97)
                     sl_reason = "RUNNER TRAIL"
                 elif current >= entry * 1.05:
@@ -872,7 +1072,7 @@ def monitor_stock_positions(ibkr, pt):
                             sl = tight_sl
                     
                     opened_at = pos.get("opened_at")
-                    if opened_at:
+                    if opened_at and not getattr(config, "DAY_TRADING_MODE", False):
                         from datetime import datetime as _dt
                         opened_time = _dt.fromisoformat(opened_at.replace("Z",""))
                         hours_open = (_dt.now() - opened_time).total_seconds() / 3600
@@ -897,10 +1097,7 @@ def monitor_stock_positions(ibkr, pt):
                                 except Exception as _ve:
                                     log.warning(f"TIME EXIT {symbol}: broker verify error ({_ve}) — proceeding cautiously")
                             if _sell_failed:
-                                if isinstance(_sell_result, dict) and _sell_result.get("pdt_held"):
-                                    log.info(f"{symbol}: PDT-hold — TIME EXIT deferred, holding position (closes overnight/after June 4)")
-                                else:
-                                    log.warning(f"⚠️ TIME EXIT {symbol}: sell order failed or rejected — NOT logging phantom close")
+                                log.warning(f"⚠️ TIME EXIT {symbol}: sell order failed or rejected — NOT logging phantom close")
                                 _trade_cooldown[symbol] = datetime.now()
                                 continue
                             from trade_history import save_trade
@@ -922,10 +1119,7 @@ def monitor_stock_positions(ibkr, pt):
                     # Verify sell actually executed before logging close
                     _sl_sell = ibkr.place_market_order(symbol, "sell", qty=float(pos["quantity"]))
                     if not _sl_sell or (isinstance(_sl_sell, dict) and _sl_sell.get("success") is False) or (isinstance(_sl_sell, dict) and not (_sl_sell.get("order_id") or _sl_sell.get("id"))):
-                        if isinstance(_sl_sell, dict) and _sl_sell.get("pdt_held"):
-                            log.info(f"{symbol}: PDT-hold — SL deferred, holding position (closes overnight/after June 4)")
-                        else:
-                            log.warning(f"⚠️ STOCK SL {symbol}: sell rejected/failed — NOT logging phantom close")
+                        log.warning(f"⚠️ STOCK SL {symbol}: sell rejected/failed — NOT logging phantom close")
                         _trade_cooldown[symbol] = datetime.now()
                         continue
                     _trade_cooldown[symbol] = datetime.now()
@@ -954,10 +1148,7 @@ def monitor_stock_positions(ibkr, pt):
                     # Verify sell actually executed before logging close
                     _tp_sell = ibkr.place_market_order(symbol, "sell", qty=float(pos["quantity"]))
                     if not _tp_sell or (isinstance(_tp_sell, dict) and _tp_sell.get("success") is False) or (isinstance(_tp_sell, dict) and not (_tp_sell.get("order_id") or _tp_sell.get("id"))):
-                        if isinstance(_tp_sell, dict) and _tp_sell.get("pdt_held"):
-                            log.info(f"{symbol}: PDT-hold — TP deferred, holding position (closes overnight/after June 4)")
-                        else:
-                            log.warning(f"⚠️ STOCK TP {symbol}: sell rejected/failed — NOT logging phantom close")
+                        log.warning(f"⚠️ STOCK TP {symbol}: sell rejected/failed — NOT logging phantom close")
                         _trade_cooldown[symbol] = datetime.now()
                         continue
                     _trade_cooldown[symbol] = datetime.now()
@@ -1730,6 +1921,7 @@ def run_scan(cb, ibkr, analyzer, stock_analyzer, tm, pt, options_client=None, op
             _j.dump(_state, _f, indent=2)
     except Exception as _e:
         log.debug(f"Auto-sync error: {_e}")
+    day_trade_force_close(ibkr)
     tm.monitor_positions()
     monitor_stock_positions(ibkr, pt)
     monitor_option_positions(options_client)

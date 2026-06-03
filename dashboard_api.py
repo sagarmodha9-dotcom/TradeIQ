@@ -35,6 +35,41 @@ def _load_initial_tt_balance():
 
 _balance_cache = {"ibkr": _load_initial_balance(), "tt": _load_initial_tt_balance(), "updated": 0}
 
+def _day_trading_status():
+    """Day-trade mode info for the dashboard."""
+    try:
+        import config as _c
+        if not getattr(_c, "DAY_TRADING_MODE", False):
+            return {"enabled": False}
+        import json as _j
+        from datetime import datetime as _d
+        try:
+            with open("day_state.json") as f: s = _j.load(f)
+        except Exception:
+            s = {}
+        today = _d.now().strftime("%Y-%m-%d")
+        realized = 0.0
+        try:
+            with open("trade_history.json") as f: t = _j.load(f)
+            realized = sum(float(x.get("pnl_usd", 0)) for x in t if str(x.get("date","")) == today)
+        except Exception:
+            pass
+        return {
+            "enabled": True,
+            "trades_opened": int(s.get("trades_opened", 0)) if s.get("date") == today else 0,
+            "max_trades": _c.MAX_TRADES_PER_DAY,
+            "daily_realized": round(realized, 2),
+            "daily_loss_limit": -_c.DAILY_LOSS_LIMIT_USD,
+            "halted": bool(s.get("halted", False)) if s.get("date") == today else False,
+            "halt_reason": s.get("halt_reason", "") if s.get("date") == today else "",
+            "position_size_pct": _c.POSITION_SIZE_PCT,
+            "cooldown_win_min": _c.COOLDOWN_WIN_MIN,
+            "cooldown_loss_min": _c.COOLDOWN_LOSS_MIN,
+            "force_close": f"{_c.FORCE_CLOSE_HOUR_ET:02d}:{_c.FORCE_CLOSE_MINUTE_ET:02d} ET",
+        }
+    except Exception as e:
+        return {"enabled": True, "error": str(e)}
+
 # Live price cache — updated every 15 seconds
 _live_cache = {"positions": [], "ibkr_pnl": 0.0, "tt_balance": 0.0, "updated": 0}
 
@@ -363,6 +398,7 @@ def get_status():
         "portfolio_usd":     round(total_portfolio, 2),
         "stock_portfolio":   round(alpaca_balance, 2),
         "options_portfolio": round(tt_balance, 2),
+        "day_trading": _day_trading_status(),
         "total_pnl":         total_pnl,
         "daily_pnl":         daily_pnl,
         "today_realized":    round(today_realized, 2),

@@ -118,9 +118,13 @@ SYMBOL_SL_PCT = {
 }
 
 def get_tp_pct(symbol):
+    if DAY_TRADING_MODE:
+        return STOCK_TP_PCT  # day trading: tight uniform TP, per-symbol dict ignored
     return SYMBOL_TP_PCT.get(symbol, STOCK_TP_PCT)
 
 def get_sl_pct(symbol):
+    if DAY_TRADING_MODE:
+        return STOCK_SL_PCT  # day trading: tight uniform SL, per-symbol dict ignored
     return SYMBOL_SL_PCT.get(symbol, STOCK_SL_PCT)
 
 
@@ -135,3 +139,20 @@ CHEAP_OPTIONS_UNIVERSE = os.getenv("CHEAP_OPTIONS_UNIVERSE", "SOFI,INTC,PLTR,SNA
 
 # Blacklisted symbols (added 5/21) — 0% win rate in last 45 trades
 EXCLUDED_SYMBOLS = os.getenv("EXCLUDED_SYMBOLS", "META,UBER").split(",")
+
+
+# ===== DAY TRADING MODE (June 3, 2026) =====
+DAY_TRADING_MODE        = os.getenv("DAY_TRADING_MODE", "false").lower() == "true"
+BAR_TIMEFRAME           = os.getenv("BAR_TIMEFRAME", "5Min") if DAY_TRADING_MODE else "1Hour"
+POSITION_SIZE_PCT       = float(os.getenv("POSITION_SIZE_PCT", 0.35))
+MAX_TRADES_PER_DAY      = int(os.getenv("MAX_TRADES_PER_DAY", 8))
+DAILY_LOSS_LIMIT_USD    = float(os.getenv("DAILY_LOSS_LIMIT_USD", 100))
+EQUITY_FLOOR            = float(os.getenv("EQUITY_FLOOR", 2100))
+COOLDOWN_WIN_MIN        = int(os.getenv("COOLDOWN_WIN_MIN", 12))
+COOLDOWN_LOSS_MIN       = int(os.getenv("COOLDOWN_LOSS_MIN", 35))
+FORCE_CLOSE_HOUR_ET     = int(os.getenv("FORCE_CLOSE_HOUR_ET", 15))
+FORCE_CLOSE_MINUTE_ET   = int(os.getenv("FORCE_CLOSE_MINUTE_ET", 50))
+NO_ENTRY_BEFORE_ET      = os.getenv("NO_ENTRY_BEFORE_ET", "09:45")
+CONSEC_LOSS_BREAKER_COUNT      = int(os.getenv("CONSEC_LOSS_BREAKER_COUNT", 3))
+CONSEC_LOSS_BREAKER_WINDOW_MIN = int(os.getenv("CONSEC_LOSS_BREAKER_WINDOW_MIN", 30))
+CONSEC_LOSS_BREAKER_HALT_MIN   = int(os.getenv("CONSEC_LOSS_BREAKER_HALT_MIN", 60))

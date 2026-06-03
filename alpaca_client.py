@@ -76,9 +76,15 @@ class AlpacaClient:
                 except: pass
             return result
         end   = datetime.now(timezone.utc)
-        # Widen lookback to account for non-trading hours
-        # 100 hourly bars needs ~15 trading days = ~3 calendar weeks of hours
-        start = end - timedelta(hours=limit * 8)
+        # Lookback widened for non-trading hours, scaled to bar timeframe
+        if "Min" in timeframe:
+            try: _mins = int(timeframe.replace("Min", ""))
+            except Exception: _mins = 5
+            start = end - timedelta(minutes=limit * _mins * 8)
+        elif "Hour" in timeframe:
+            start = end - timedelta(hours=limit * 8)
+        else:
+            start = end - timedelta(days=limit * 2)
         base_ep = (
             f"/v2/stocks/{symbol}/bars"
             f"?timeframe={timeframe}"
@@ -140,20 +146,6 @@ class AlpacaClient:
                 "fill_value_usd": notional or (qty * fill_price),
                 "timestamp":      datetime.now(timezone.utc).isoformat(),
             }
-        # --- TEMPORARY PDT GUARD (remove June 3 for day trading — PDT dies June 4) ---
-        # If a sell would be blocked by Pattern Day Trader protection, hold quietly
-        # instead of spamming rejects that trigger false retry-storm alerts.
-        if side == "sell":
-            try:
-                _acct = self.get_account()
-                _pdt = _acct.get("pattern_day_trader", False)
-                _dtc = float(_acct.get("daytrade_count", 0) or 0)
-                if _pdt or _dtc >= 3:
-                    log.info(f"{symbol}: PDT-hold — sell deferred (PDT protection active, will close overnight/after June 4)")
-                    return {"success": False, "pdt_held": True, "symbol": symbol, "side": side}
-            except Exception:
-                pass
-        # --- END PDT GUARD ---
         # Check if pre/post market
         from datetime import datetime, timezone
         now = datetime.now(timezone.utc)

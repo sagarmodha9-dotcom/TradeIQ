@@ -207,6 +207,12 @@ def day_trade_force_close(ibkr):
                                     "status": "closed_force", "market": "stocks",
                                     "closed_at": datetime.now().isoformat(),
                                     "date": today})
+                        try:
+                            from notifier import alert_trade_closed
+                            _pnl_pct = (exit_px - entry) / entry * 100 if entry else 0
+                            alert_trade_closed(sym, "BUY", entry, exit_px, pnl, _pnl_pct, "closed_force", "stocks")
+                        except Exception:
+                            pass
                     except Exception as _se:
                         log.error(f"  force-close save_trade {sym}: {_se}")
                 _trade_cooldown[sym] = datetime.now()

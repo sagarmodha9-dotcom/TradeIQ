@@ -192,17 +192,19 @@ def day_trade_force_close(ibkr):
         try:
             sym = p["symbol"]
             qty = float(p["qty"])
+            _fc_short = qty < 0 or str(p.get("side","")).lower() == "short"
+            qty = abs(qty)
             entry = float(p.get("avg_entry_price", 0) or 0)
-            r = ibkr.place_market_order(sym, "sell", qty=qty)
+            r = ibkr.place_market_order(sym, "buy" if _fc_short else "sell", qty=qty)
             ok2 = bool(r and isinstance(r, dict) and (r.get("order_id") or r.get("id")))
             log.info(f"  force-close {sym}: {'OK' if ok2 else 'FAILED'}")
             if ok2 and entry > 0:
                 exit_px = float(r.get("fill_price") or 0) or float(ibkr.get_latest_price(sym) or 0)
                 if exit_px > 0:
-                    pnl = round((exit_px - entry) * qty, 4)
+                    pnl = round(((entry - exit_px) if _fc_short else (exit_px - entry)) * qty, 4)
                     try:
                         from trade_history import save_trade
-                        save_trade({"product_id": sym, "side": "BUY", "entry_price": entry,
+                        save_trade({"product_id": sym, "side": "SHORT" if _fc_short else "BUY", "entry_price": entry,
                                     "exit_price": exit_px, "pnl_usd": pnl,
                                     "status": "closed_force", "market": "stocks",
                                     "closed_at": datetime.now().isoformat(),
@@ -854,6 +856,87 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
                 open_stock_count = len(existing_positions)
                 needed_conf = required_stock_confidence(open_stock_count)
 
+                if signal["action"] == "SELL" and not _cooldown_active and getattr(config, "SHORTS_ENABLED", False) and getattr(config, "DAY_TRADING_MODE", False):
+                    _ok, _why = day_trade_entry_allowed(ibkr)
+                    if not _ok:
+                        log.info(f"{symbol}: DAY-TRADE GATE (short) — {_why}")
+                        continue
+                    if signal["confidence"] < required_stock_confidence(len(existing_positions)):
+                        log.info(f"{symbol}: SHORT BLOCKED — conf {signal['confidence']:.0%} below threshold")
+                        continue
+                    if not valid_trade_price(symbol, signal.get("entry_price")):
+                        continue
+                    if symbol in [p.get("product_id") for p in existing_positions]:
+                        log.info(f"{symbol}: already have open position — no flip, skipping short")
+                        continue
+                    if symbol in _ordered_this_scan:
+                        continue
+                    # ETB pre-flight
+                    _asset = ibkr.get_asset(symbol)
+                    if not (_asset.get("tradable") and _asset.get("shortable") and _asset.get("easy_to_borrow")):
+                        log.info(f"[SKIP-HTB] {symbol}: not shortable/ETB — skipping")
+                        continue
+                    # SSR filter: skip if down >=9.5% from prev close
+                    _pc = ibkr.get_prev_close(symbol)
+                    _cur_px = float(ibkr.get_latest_price(symbol) or 0)
+                    if _pc > 0 and _cur_px > 0 and (_cur_px - _pc) / _pc <= -0.095:
+                        log.info(f"[SKIP-SSR] {symbol}: down {(_cur_px-_pc)/_pc:.1%} from prev close — uptick rule risk")
+                        continue
+                    # News: block shorts on POSITIVE sentiment (mirror of long rule)
+                    try:
+                        _ns = news_sentiment.get_news_sentiment(symbol) or {}
+                        if str(_ns.get("sentiment","")).lower() == "positive":
+                            log.info(f"[NEWS BLOCK] {symbol}: positive news — skipping short")
+                            continue
+                    except Exception:
+                        pass
+                    ok, reason = risk_manager.check_all(symbol, signal["confidence"], pt.stock_balance)
+                    if not ok:
+                        log.info(f"[BLOCKED] {symbol}: {reason}")
+                        continue
+                    if len(existing_positions) >= config.MAX_OPEN_POSITIONS:
+                        log.info(f"{symbol}: max open positions — skipping short")
+                        continue
+                    try:
+                        _live_bal = float(ibkr.get_account().get("portfolio_value", config.LIVE_ACCOUNT_BALANCE))
+                    except Exception:
+                        _live_bal = config.LIVE_ACCOUNT_BALANCE
+                    _short_usd = dynamic_position_size(0, _live_bal)
+                    if _cur_px <= 0 or _cur_px > _short_usd:
+                        log.info(f"{symbol}: price ${_cur_px:.2f} exceeds short budget ${_short_usd:.0f} — skipping (whole shares only)")
+                        continue
+                    _short_qty = int(_short_usd // _cur_px)
+                    if _short_qty < 1:
+                        continue
+                    _ordered_this_scan.add(symbol)
+                    _sfill = ibkr.place_market_order(symbol, "sell", qty=_short_qty)
+                    if _sfill and (_sfill.get("success") or _sfill.get("status") in ["filled", "partially_filled", "Filled", "accepted", "pending_new", "new"] or _sfill.get("order_id") or _sfill.get("id")):
+                        import time as _st; _st.sleep(2)
+                        try:
+                            _rp = next((x for x in (ibkr.get_positions() or []) if x.get("symbol") == symbol), None)
+                            _sentry = abs(float(_rp["avg_entry_price"])) if _rp else _cur_px
+                        except Exception:
+                            _sentry = _cur_px
+                        day_trade_increment_trades()
+                        _ssl = round(_sentry * (1 + config.SHORT_SL_PCT), 4)
+                        _stp = round(_sentry * (1 - config.SHORT_TP_PCT), 4)
+                        from notifier import alert_trade_opened
+                        alert_trade_opened(symbol, "SHORT", _sentry, _short_qty, _ssl, _stp, signal["confidence"], "stocks")
+                        positions.append({
+                            "product_id":  symbol, "side": "SHORT",
+                            "entry_price": _sentry,
+                            "quantity":    float(_short_qty),
+                            "usd_value":   round(_sentry * _short_qty, 2),
+                            "stop_loss":   _ssl,
+                            "take_profit": _stp,
+                            "confidence":  signal["confidence"],
+                            "reasoning":   signal.get("reasoning", ""),
+                            "opened_at":   datetime.now().isoformat(),
+                            "market":      "stocks", "pnl_usd": 0.0,
+                        })
+                        log.info(f"SHORT {symbol} x{_short_qty} @ ~${_sentry:.2f} | SL ${_ssl} TP ${_stp}")
+                    continue
+
                 if signal["action"] == "BUY" and not _cooldown_active:
                     _ok, _why = day_trade_entry_allowed(ibkr)
                     if not _ok:
@@ -1016,8 +1099,13 @@ def monitor_stock_positions(ibkr, pt):
                     log.warning(f"{symbol}: price feed returned 0, using last known ${current:.2f}")
                 else:
                     pos["last_known_price"] = current
-                pnl = (current - entry) * float(pos["quantity"])
-                pnl_pct = (current - entry) / entry * 100 if entry > 0 else 0
+                _is_short = str(pos.get("side","BUY")).upper() in ("SHORT","SELL")
+                if _is_short:
+                    pnl = (entry - current) * float(pos["quantity"])
+                    pnl_pct = (entry - current) / entry * 100 if entry > 0 else 0
+                else:
+                    pnl = (current - entry) * float(pos["quantity"])
+                    pnl_pct = (current - entry) / entry * 100 if entry > 0 else 0
                 # Progressive profit lock:
                 # +2%  -> move SL to breakeven
                 # +3%  -> lock small profit
@@ -1054,17 +1142,17 @@ def monitor_stock_positions(ibkr, pt):
                     # FORCE EXIT on earnings day (DTE == 0) — never hold through earnings
                     if _dte is not None and _dte == 0:
                         log.warning(f"⚠️ EARNINGS DAY EXIT {symbol} @ ${current:.2f} — earnings today, force closing")
-                        _earnings_sell = ibkr.place_market_order(symbol, "sell", qty=float(pos["quantity"]))
+                        _earnings_sell = ibkr.place_market_order(symbol, "buy" if _is_short else "sell", qty=float(pos["quantity"]))
                         if _earnings_sell and isinstance(_earnings_sell, dict) and (_earnings_sell.get("order_id") or _earnings_sell.get("id")) and _earnings_sell.get("success") is not False:
                             from trade_history import save_trade
-                            save_trade({"product_id": symbol, "side": "BUY", "entry_price": entry,
+                            save_trade({"product_id": symbol, "side": str(pos.get("side","BUY")), "entry_price": entry,
                                 "exit_price": current, "pnl_usd": round(pnl, 4),
                                 "pnl_pct": round(pnl_pct, 2), "status": "closed_earnings_exit",
                                 "market": "stocks", "confidence": pos.get("confidence", 0),
                                 "opened_at": pos.get("opened_at"), "closed_at": datetime.now().isoformat()})
                             pt.record_stock_trade(round(pnl, 4), win=(pnl > 0))
                             from notifier import alert_trade_closed
-                            alert_trade_closed(symbol, "BUY", entry, current, pnl, pnl_pct, "closed_earnings_exit", "stocks")
+                            alert_trade_closed(symbol, str(pos.get("side","BUY")), entry, current, pnl, pnl_pct, "closed_earnings_exit", "stocks")
                             closed.append(symbol)
                             _trade_cooldown[symbol] = datetime.now()
                             continue
@@ -1113,23 +1201,23 @@ def monitor_stock_positions(ibkr, pt):
                                 _trade_cooldown[symbol] = datetime.now()
                                 continue
                             from trade_history import save_trade
-                            save_trade({"product_id": symbol, "side": "BUY", "entry_price": entry,
+                            save_trade({"product_id": symbol, "side": str(pos.get("side","BUY")), "entry_price": entry,
                                 "exit_price": current, "pnl_usd": round(pnl, 4),
                                 "pnl_pct": round(pnl_pct, 2), "status": "closed_time_exit",
                                 "market": "stocks", "confidence": pos.get("confidence", 0),
                                 "opened_at": pos.get("opened_at"), "closed_at": datetime.now().isoformat()})
                             pt.record_stock_trade(round(pnl, 4), win=True)
                             from notifier import alert_trade_closed
-                            alert_trade_closed(symbol, "BUY", entry, current, pnl, pnl_pct, "closed_time_exit", "stocks")
+                            alert_trade_closed(symbol, str(pos.get("side","BUY")), entry, current, pnl, pnl_pct, "closed_time_exit", "stocks")
                             closed.append(symbol)
                             continue
                 except Exception as _te:
                     log.debug(f"Time exit check error: {_te}")
 
-                if current <= sl:
+                if (current >= sl) if _is_short else (current <= sl):
                     log.info(f"❌ STOCK SL HIT {symbol} @ ${current:.2f} PnL: ${pnl:.2f}")
                     # Verify sell actually executed before logging close
-                    _sl_sell = ibkr.place_market_order(symbol, "sell", qty=float(pos["quantity"]))
+                    _sl_sell = ibkr.place_market_order(symbol, "buy" if _is_short else "sell", qty=float(pos["quantity"]))
                     if not _sl_sell or (isinstance(_sl_sell, dict) and _sl_sell.get("success") is False) or (isinstance(_sl_sell, dict) and not (_sl_sell.get("order_id") or _sl_sell.get("id"))):
                         log.warning(f"⚠️ STOCK SL {symbol}: sell rejected/failed — NOT logging phantom close")
                         _trade_cooldown[symbol] = datetime.now()
@@ -1143,7 +1231,7 @@ def monitor_stock_positions(ibkr, pt):
                         _cj.dump(_cd, open(_cf, "w"))
                     except: pass
                     from trade_history import save_trade
-                    save_trade({"product_id": symbol, "side": "BUY", "entry_price": entry,
+                    save_trade({"product_id": symbol, "side": str(pos.get("side","BUY")), "entry_price": entry,
                                 "exit_price": current, "pnl_usd": round(pnl, 4),
                                 "pnl_pct": round(pnl_pct, 2), "status": "closed_sl",
                                 "market": "stocks", "confidence": pos.get("confidence", 0),
@@ -1153,12 +1241,12 @@ def monitor_stock_positions(ibkr, pt):
                                 "opened_at": pos.get("opened_at"), "closed_at": datetime.now().isoformat()})
                     pt.record_stock_trade(round(pnl, 4), win=False)
                     from notifier import alert_trade_closed
-                    alert_trade_closed(symbol, "BUY", entry, current, pnl, pnl_pct, "closed_sl", "stocks")
+                    alert_trade_closed(symbol, str(pos.get("side","BUY")), entry, current, pnl, pnl_pct, "closed_sl", "stocks")
                     closed.append(symbol)
-                elif current >= tp:
+                elif (current <= tp) if _is_short else (current >= tp):
                     log.info(f"✅ STOCK TP HIT {symbol} @ ${current:.2f} PnL: ${pnl:.2f}")
                     # Verify sell actually executed before logging close
-                    _tp_sell = ibkr.place_market_order(symbol, "sell", qty=float(pos["quantity"]))
+                    _tp_sell = ibkr.place_market_order(symbol, "buy" if _is_short else "sell", qty=float(pos["quantity"]))
                     if not _tp_sell or (isinstance(_tp_sell, dict) and _tp_sell.get("success") is False) or (isinstance(_tp_sell, dict) and not (_tp_sell.get("order_id") or _tp_sell.get("id"))):
                         log.warning(f"⚠️ STOCK TP {symbol}: sell rejected/failed — NOT logging phantom close")
                         _trade_cooldown[symbol] = datetime.now()
@@ -1172,7 +1260,7 @@ def monitor_stock_positions(ibkr, pt):
                         _cj.dump(_cd, open(_cf, "w"))
                     except: pass
                     from trade_history import save_trade
-                    save_trade({"product_id": symbol, "side": "BUY", "entry_price": entry,
+                    save_trade({"product_id": symbol, "side": str(pos.get("side","BUY")), "entry_price": entry,
                                 "exit_price": current, "pnl_usd": round(pnl, 4),
                                 "pnl_pct": round(pnl_pct, 2), "status": "closed_tp",
                                 "reasoning": pos.get("reasoning", ""),
@@ -1182,7 +1270,7 @@ def monitor_stock_positions(ibkr, pt):
                                 "opened_at": pos.get("opened_at"), "closed_at": datetime.now().isoformat()})
                     pt.record_stock_trade(round(pnl, 4), win=True)
                     from notifier import alert_trade_closed
-                    alert_trade_closed(symbol, "BUY", entry, current, pnl, pnl_pct, "closed_tp", "stocks")
+                    alert_trade_closed(symbol, str(pos.get("side","BUY")), entry, current, pnl, pnl_pct, "closed_tp", "stocks")
                     closed.append(symbol)
                     global _immediate_redeploy
                     _immediate_redeploy = True  # Trigger instant rescan

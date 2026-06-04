@@ -206,6 +206,19 @@ class AlpacaClient:
     def get_positions(self):
         return self._request("GET", self.base_url, "/v2/positions")
 
+    def get_asset(self, symbol):
+        """Asset metadata — tradable/shortable/easy_to_borrow flags."""
+        return self._request("GET", self.base_url, f"/v2/assets/{symbol}") or {}
+
+    def get_prev_close(self, symbol):
+        """Previous daily close (for SSR filter). Returns float or 0."""
+        try:
+            d = self._request("GET", self.data_url,
+                f"/v2/stocks/{symbol}/snapshot?feed=" + DATA_FEED) or {}
+            return float((d.get("prevDailyBar") or {}).get("c") or 0)
+        except Exception:
+            return 0.0
+
     def close_position(self, symbol):
         try:
             return self._request("DELETE", self.base_url, f"/v2/positions/{symbol}")

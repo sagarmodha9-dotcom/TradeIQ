@@ -2368,7 +2368,8 @@ def main():
     while _running:
         try:
             # Pre-market scanner (8:00-9:25 AM)
-            run_premarket_scan(ibkr, analyzer, stock_analyzer)
+            if not getattr(config, "DAY_TRADING_MODE", False):
+                run_premarket_scan(ibkr, analyzer, stock_analyzer)
             run_scan(cb, ibkr, analyzer, stock_analyzer, tm, pt, options_client, options_analyzer)
         except Exception as e:
             log.error(f"Scan error: {e}", exc_info=True)

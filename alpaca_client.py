@@ -1,3 +1,5 @@
+import os
+DATA_FEED = os.getenv("DATA_FEED", "iex")
 import time
 import requests
 from datetime import datetime, timezone, timedelta
@@ -92,14 +94,14 @@ class AlpacaClient:
             f"&end={end.strftime('%Y-%m-%dT%H:%M:%SZ')}"
             f"&limit={limit}"
         )
-        bars = _parse_bars(self._request("GET", self.data_url, base_ep + "&feed=iex"))
+        bars = _parse_bars(self._request("GET", self.data_url, base_ep + "&feed=" + DATA_FEED))
         if not bars:
-            bars = _parse_bars(self._request("GET", self.data_url, base_ep + "&feed=iex"))
+            bars = _parse_bars(self._request("GET", self.data_url, base_ep + "&feed=" + DATA_FEED))
         return bars
 
     def get_latest_price(self, symbol):
         # Try latest trade (most reliable)
-        for feed in ["iex", "sip"]:
+        for feed in [DATA_FEED, "iex" if DATA_FEED=="sip" else "sip"]:
             try:
                 data = self._request("GET", self.data_url,
                     f"/v2/stocks/{symbol}/trades/latest?feed={feed}") or {}
@@ -108,7 +110,7 @@ class AlpacaClient:
                     return price
             except: pass
         # Try quote
-        for feed in ["iex", "sip"]:
+        for feed in [DATA_FEED, "iex" if DATA_FEED=="sip" else "sip"]:
             try:
                 data = self._request("GET", self.data_url,
                     f"/v2/stocks/{symbol}/quotes/latest?feed={feed}") or {}

@@ -1,37 +1,5 @@
 [
   {
-    "timestamp": "2026-05-21T14:29:49.799254",
-    "stage": "buy_signal_seen",
-    "symbol": "AMD",
-    "action": "BUY",
-    "confidence": 0.72,
-    "regime": "CHOP",
-    "entry_price": 446.24,
-    "rsi": 58.18,
-    "macd_histogram": 0.7427,
-    "ema_alignment": "bullish",
-    "price_vs_ema20": 1.97,
-    "price_vs_vwap": 3.23,
-    "volume_ratio": 0.21,
-    "reasoning": "AMD presents a solid entry opportunity with bullish technical alignment. RSI at 58.18 is healthy (not overbought), indicating room for upside momentum. MACD is positive with histogram expansion (0.7427), suggesting strengthening bullish momentum despite neutral crossover status. Price is well-positioned above both EMA9 ($441.85) and EMA20 ($437.63) with strong outperformance vs VWAP (+3.23%), confirming uptrend strength. Bollinger %B at 0.712 indicates mid-range positioning with expansion potent"
-  },
-  {
-    "timestamp": "2026-05-21T14:30:10.402249",
-    "stage": "buy_signal_seen",
-    "symbol": "INTC",
-    "action": "BUY",
-    "confidence": 0.72,
-    "regime": "CHOP",
-    "entry_price": 118.86,
-    "rsi": 60.09,
-    "macd_histogram": 0.1165,
-    "ema_alignment": "bullish",
-    "price_vs_ema20": 2.6,
-    "price_vs_vwap": 5.19,
-    "volume_ratio": 0.21,
-    "reasoning": "INTC shows solid technical setup with RSI at healthy 60.09 (not overbought), positive MACD histogram at 0.1165 with upside momentum, and bullish EMA alignment (price above both EMA9 and EMA20). Price trades 2.60% above EMA20 and 5.19% above VWAP, indicating buyer control. Bollinger %B at 0.75 suggests room to run without extreme overbought conditions. No RSI divergence provides clean confirmation. Primary weakness is below-average volume (0.21x), typical of summer trading or consolidation phase,"
-  },
-  {
     "timestamp": "2026-05-21T14:30:22.608924",
     "stage": "buy_signal_seen",
     "symbol": "JPM",
@@ -31998,5 +31966,37 @@
     "price_vs_vwap": 0.19,
     "volume_ratio": 2.3,
     "reasoning": "GOOGL presents a solid entry opportunity with RSI at 61.65 (healthy bullish zone without overbought extremes), positive MACD histogram (0.7368) indicating building upward momentum, and price above both EMA9/EMA20 with +0.86% premium to EMA20. Volume confirmation strong at 2.3x average. Bollinger squeeze True suggests volatility compression before directional breakout. Mixed EMA alignment and neutral MACD crossover prevent higher confidence, but overall technical picture supports bullish position"
+  },
+  {
+    "timestamp": "2026-06-04T15:29:23.542643",
+    "stage": "buy_signal_seen",
+    "symbol": "GOOGL",
+    "action": "BUY",
+    "confidence": 0.72,
+    "regime": "CHOP",
+    "entry_price": 365.44,
+    "rsi": 61.65,
+    "macd_histogram": 0.7368,
+    "ema_alignment": "mixed",
+    "price_vs_ema20": 0.86,
+    "price_vs_vwap": 0.19,
+    "volume_ratio": 2.3,
+    "reasoning": "GOOGL presents a solid entry with favorable technical confluence. RSI at 61.65 is healthy mid-range momentum without overbought risk. Price is above both EMA9 ($362.97) and EMA20 ($362.32) by 0.86%, confirming uptrend alignment. Volume ratio of 2.3x average validates buying interest. MACD histogram is positive (0.7368) despite signal line lag, suggesting momentum building. Bollinger squeeze with price at 0.959 %B indicates potential breakout. The 2.1:1 risk-reward ratio meets minimum threshold. "
+  },
+  {
+    "timestamp": "2026-06-04T15:35:54.764610",
+    "stage": "buy_signal_seen",
+    "symbol": "GOOGL",
+    "action": "BUY",
+    "confidence": 0.68,
+    "regime": "CHOP",
+    "entry_price": 365.44,
+    "rsi": 61.65,
+    "macd_histogram": 0.7368,
+    "ema_alignment": "mixed",
+    "price_vs_ema20": 0.86,
+    "price_vs_vwap": 0.19,
+    "volume_ratio": 2.3,
+    "reasoning": "GOOGL presents a decent entry with multiple positive confluences. RSI at 61.65 is healthy (not overbought), price is above both EMA9 and EMA20 with +0.86% separation. MACD histogram is positive at 0.7368 indicating upside momentum building despite signal line lag. Volume surge at 2.3x average confirms institutional interest. Bollinger squeeze suggests breakout potential. Primary concern: MACD signal line slightly negative (-0.5757) and mixed EMA alignment indicate early-stage move, not fully con"
   }
 ]

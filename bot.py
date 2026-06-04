@@ -952,16 +952,22 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
                         day_trade_increment_trades()
                         # Telegram alert for trade opened
                         from notifier import alert_trade_opened
+                        if getattr(config, "DAY_TRADING_MODE", False):
+                            day_sl = round(entry_price * (1 - config.get_sl_pct(symbol)), 4)
+                            day_tp = round(entry_price * (1 + config.get_tp_pct(symbol)), 4)
+                        else:
+                            day_sl = signal["stop_loss"]
+                            day_tp = signal["take_profit"]
                         alert_trade_opened(symbol, "BUY", entry_price, round(qty, 4),
-                            signal["stop_loss"], signal["take_profit"],
+                            day_sl, day_tp,
                             signal["confidence"], "stocks")
                         positions.append({
                             "product_id":  symbol, "side": "BUY",
                             "entry_price": entry_price,
                             "quantity":    qty,
                             "usd_value":   size_usd,
-                            "stop_loss":   signal["stop_loss"],
-                            "take_profit": signal["take_profit"],
+                            "stop_loss":   day_sl,
+                            "take_profit": day_tp,
                             "confidence":  signal["confidence"],
                             "reasoning":   signal.get("reasoning", ""),
                             "key_signals": signal.get("key_signals", []),

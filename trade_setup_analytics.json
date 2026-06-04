@@ -1,37 +1,5 @@
 [
   {
-    "timestamp": "2026-05-21T14:28:12.819483",
-    "stage": "buy_signal_seen",
-    "symbol": "PLTR",
-    "action": "BUY",
-    "confidence": 0.72,
-    "regime": "CHOP",
-    "entry_price": 137.76,
-    "rsi": 58.87,
-    "macd_histogram": 0.1034,
-    "ema_alignment": "bullish",
-    "price_vs_ema20": 0.99,
-    "price_vs_vwap": 2.75,
-    "volume_ratio": 0.22,
-    "reasoning": "PLTR displays solid bullish technicals with price above both EMA9 ($137.24) and EMA20 ($136.42) in proper alignment. RSI at 58.87 is healthy mid-range territory\u2014not overbought, showing room for upside momentum. MACD is positive (histogram +0.1034) with signal line above zero, indicating sustained upward momentum. Price trades +0.99% above EMA20 and +2.75% above VWAP, confirming buyer strength. Bollinger %B at 0.827 shows price in upper band but not squeezed, consistent with controlled bullish pr"
-  },
-  {
-    "timestamp": "2026-05-21T14:28:16.818572",
-    "stage": "buy_signal_seen",
-    "symbol": "SNAP",
-    "action": "BUY",
-    "confidence": 0.72,
-    "regime": "CHOP",
-    "entry_price": 5.81,
-    "rsi": 60.66,
-    "macd_histogram": 0.0255,
-    "ema_alignment": "bullish",
-    "price_vs_ema20": 2.68,
-    "price_vs_vwap": 4.8,
-    "volume_ratio": 0.23,
-    "reasoning": "SNAP presents a solid entry opportunity with multiple bullish confirmations. Price is 2.68% above EMA20 and trading above both EMA9 ($5.73) and EMA20 ($5.66) in clear bullish alignment. RSI at 60.66 is healthy (not overbought) and MACD positive (0.0720 > 0.0464 signal line) with positive histogram of 0.0255 showing upward momentum. Price trading 4.80% above VWAP indicates institutional buying support. The main caution is low volume (0.23x average), which limits conviction but doesn't invalidate "
-  },
-  {
     "timestamp": "2026-05-21T14:29:49.799254",
     "stage": "buy_signal_seen",
     "symbol": "AMD",
@@ -31998,5 +31966,37 @@
     "price_vs_vwap": 0.19,
     "volume_ratio": 2.3,
     "reasoning": "GOOGL presents a solid entry with confluent bullish signals. RSI at 61.65 is healthy mid-range (40-65 zone), indicating momentum without overbought conditions. Price is above both EMA9 ($362.97) and EMA20 ($362.32) by 0.86%, showing uptrend alignment. Volume confirmation strong at 2.3x average. MACD histogram positive at 0.7368 despite neutral crossover suggests building bullish momentum\u2014early stages of potential uptrend. Bollinger squeeze indicates volatility compression before breakout. Price "
+  },
+  {
+    "timestamp": "2026-06-04T14:06:29.990685",
+    "stage": "buy_signal_seen",
+    "symbol": "GOOGL",
+    "action": "BUY",
+    "confidence": 0.72,
+    "regime": "CHOP",
+    "entry_price": 365.44,
+    "rsi": 61.65,
+    "macd_histogram": 0.7368,
+    "ema_alignment": "mixed",
+    "price_vs_ema20": 0.86,
+    "price_vs_vwap": 0.19,
+    "volume_ratio": 2.3,
+    "reasoning": "GOOGL presents a solid entry with positive technical alignment. Price is above both EMA9 and EMA20 (+0.86%), RSI is healthy at 61.65 (mid-range bullish zone, not overbought), MACD histogram is positive at 0.7368 indicating upward momentum building despite signal line lag. Volume confirmation at 2.3x average supports conviction. Bollinger squeeze suggests potential breakout. EMA alignment is mixed but price action is constructive. Risk/reward of 2.1:1 meets minimum threshold with defined 3% stop "
+  },
+  {
+    "timestamp": "2026-06-04T14:52:12.594136",
+    "stage": "buy_signal_seen",
+    "symbol": "GOOGL",
+    "action": "BUY",
+    "confidence": 0.72,
+    "regime": "CHOP",
+    "entry_price": 365.44,
+    "rsi": 61.65,
+    "macd_histogram": 0.7368,
+    "ema_alignment": "mixed",
+    "price_vs_ema20": 0.86,
+    "price_vs_vwap": 0.19,
+    "volume_ratio": 2.3,
+    "reasoning": "GOOGL presents a solid entry opportunity with RSI at 61.65 (healthy bullish zone without overbought extremes), positive MACD histogram (0.7368) indicating building upward momentum, and price above both EMA9/EMA20 with +0.86% premium to EMA20. Volume confirmation strong at 2.3x average. Bollinger squeeze True suggests volatility compression before directional breakout. Mixed EMA alignment and neutral MACD crossover prevent higher confidence, but overall technical picture supports bullish position"
   }
 ]

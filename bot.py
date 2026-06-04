@@ -906,7 +906,7 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
                         _live_bal = float(ibkr.get_account().get("portfolio_value", config.LIVE_ACCOUNT_BALANCE))
                     except:
                         _live_bal = config.LIVE_ACCOUNT_BALANCE
-                    base_size = _live_bal * config.MAX_POSITION_PCT
+                    base_size = dynamic_position_size(0, _live_bal)
                     try:
                         avail_cash = ibkr.get_cash_balance()
                         if avail_cash < base_size:

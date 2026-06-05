@@ -55,11 +55,13 @@ CRYPTO_PAIRS         = []
 
 STOCK_SYMBOLS = [
     "MSFT", "NVDA", "TSLA", "AMZN",
-    "META", "GOOGL", "AMD",
-    "SPY",  "QQQ",  "SOFI", "HOOD",
-    "INTC", "NFLX", "DIS",  "UBER", "BABA",
-    "AAPL", "JPM",  "BAC",  "COIN", "PLTR",
-    "APP",  "SNAP", "ROKU", "SHOP", "SQ",
+    "META", "GOOGL", "AMD",  "SPY",
+    "QQQ",  "HOOD", "INTC", "NFLX",
+    "UBER", "AAPL", "JPM",  "BAC",
+    "COIN", "PLTR", "APP",  "ROKU",
+    "MU",   "AVGO", "SMCI", "CRWD",
+    "MRVL", "AMAT", "DELL", "ORCL",
+    "LRCX", "RDDT",
 ]
 
 def validate_config():

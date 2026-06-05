@@ -99,6 +99,57 @@ class AlpacaClient:
             bars = _parse_bars(self._request("GET", self.data_url, base_ep + "&feed=" + DATA_FEED))
         return bars
 
+    def get_bars_multi(self, symbols, timeframe="5Min", limit=100):
+        """Batch bars for many symbols in one request. Returns {symbol: [bars]}.
+        Symbols missing from the response are simply absent from the dict."""
+        out = {}
+        if not symbols:
+            return out
+        end = datetime.now(timezone.utc)
+        if "Min" in timeframe:
+            try: _mins = int(timeframe.replace("Min", ""))
+            except Exception: _mins = 5
+            start = end - timedelta(minutes=limit * _mins * 8)
+        elif "Hour" in timeframe:
+            start = end - timedelta(hours=limit * 8)
+        else:
+            start = end - timedelta(days=limit * 2)
+        ep = (
+            "/v2/stocks/bars"
+            f"?symbols={','.join(symbols)}"
+            f"&timeframe={timeframe}"
+            f"&start={start.strftime('%Y-%m-%dT%H:%M:%SZ')}"
+            f"&end={end.strftime('%Y-%m-%dT%H:%M:%SZ')}"
+            f"&limit={limit * len(symbols)}"
+            f"&feed={DATA_FEED}"
+        )
+        data = self._request("GET", self.data_url, ep) or {}
+        # paginate if Alpaca returns a next_page_token
+        pages = 0
+        while True:
+            for sym, blist in (data.get("bars") or {}).items():
+                rows = out.setdefault(sym, [])
+                for b in blist or []:
+                    try:
+                        rows.append({
+                            "time":   b["t"],
+                            "open":   float(b["o"]),
+                            "high":   float(b["h"]),
+                            "low":    float(b["l"]),
+                            "close":  float(b["c"]),
+                            "volume": float(b["v"]),
+                        })
+                    except: pass
+            tok = data.get("next_page_token")
+            pages += 1
+            if not tok or pages >= 10:
+                break
+            data = self._request("GET", self.data_url, ep + f"&page_token={tok}") or {}
+        # keep only the most recent `limit` bars per symbol
+        for sym in list(out.keys()):
+            out[sym] = out[sym][-limit:]
+        return out
+
     def get_latest_price(self, symbol):
         # Try latest trade (most reliable)
         for feed in [DATA_FEED, "iex" if DATA_FEED=="sip" else "sip"]:

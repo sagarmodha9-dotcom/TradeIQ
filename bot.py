@@ -819,11 +819,17 @@ def run_stock_scan(ibkr, stock_analyzer, pt):
     log.info(f"── Stock scan — {len(config.STOCK_SYMBOLS)} symbols")
     # No time-based cooldown — daily loss limit is the safety net
     signals, positions = [], []
+    # Batch-fetch bars for the whole watchlist in one request (fallback: per-symbol)
+    try:
+        _bars_all = ibkr.get_bars_multi(config.STOCK_SYMBOLS, timeframe=config.BAR_TIMEFRAME, limit=100)
+    except Exception as _be:
+        log.warning(f"batch bars failed ({_be}) — falling back to per-symbol")
+        _bars_all = {}
     for symbol in config.STOCK_SYMBOLS:
         if symbol.upper() in [s.strip().upper() for s in getattr(config, "EXCLUDED_SYMBOLS", [])]:
             continue
         try:
-            bars   = ibkr.get_bars(symbol, timeframe=config.BAR_TIMEFRAME, limit=100)
+            bars   = _bars_all.get(symbol) or ibkr.get_bars(symbol, timeframe=config.BAR_TIMEFRAME, limit=100)
             if not has_enough_bar_data(symbol, bars, min_bars=50):
                 continue
             signal = stock_analyzer.analyze(symbol, bars)

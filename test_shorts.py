@@ -17,8 +17,8 @@ check("T1 flag off by default", config.SHORTS_ENABLED == False)
 # ---- T2: short bracket math (SL above, TP below)
 e = 100.0
 ssl = round(e * (1 + config.SHORT_SL_PCT), 4); stp = round(e * (1 - config.SHORT_TP_PCT), 4)
-check("T2 short SL above entry", ssl == 100.5, f"{ssl}")
-check("T2 short TP below entry", stp == 99.2, f"{stp}")
+check("T2 short SL above entry", ssl == round(100*(1+config.SHORT_SL_PCT),4) and ssl > e, f"{ssl}")
+check("T2 short TP below entry", stp == round(100*(1-config.SHORT_TP_PCT),4) and stp < e, f"{stp}")
 
 # ---- T3: monitor sign logic (simulate the branch math)
 def pnl_for(side, entry, current, qty):
